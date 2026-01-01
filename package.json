@@ -1,0 +1,55 @@
+{
+  "name": "leetpilot-extension",
+  "version": "1.0.0",
+  "description": "AI-powered code completion and educational hints for LeetCode with BYOK (Bring Your Own Key) privacy",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:dev": "node scripts/build.js development chrome",
+    "build:staging": "node scripts/build.js staging chrome",
+    "build:prod": "node scripts/build.js production chrome",
+    "build:extension": "npm run build && npm run copy:extension",
+    "copy:extension": "cp manifest.json dist/ && cp -r background dist/ && cp -r content dist/ && cp -r popup dist/ && cp -r icons dist/",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist dist-dev dist-staging",
+    "clean:all": "npm run clean && rm -f *.zip",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "package": "npm run clean && npm run build:prod && npm run create:zip",
+    "package:dev": "npm run build:dev && npm run create:zip:dev",
+    "package:staging": "npm run build:staging && npm run create:zip:staging",
+    "create:zip": "cd dist && zip -r ../leetpilot-extension.zip . && cd ..",
+    "create:zip:dev": "cd dist-dev && zip -r ../leetpilot-extension-dev.zip . && cd ..",
+    "create:zip:staging": "cd dist-staging && zip -r ../leetpilot-extension-staging.zip . && cd ..",
+    "validate:icons": "node scripts/validate-icons.js",
+    "validate:package": "node scripts/validate-package.js",
+    "validate:all": "npm run validate:icons && npm run validate:package",
+    "version:patch": "npm version patch --no-git-tag-version && node scripts/update-manifest-version.js",
+    "version:minor": "npm version minor --no-git-tag-version && node scripts/update-manifest-version.js",
+    "version:major": "npm version major --no-git-tag-version && node scripts/update-manifest-version.js",
+    "prepare:store": "npm run validate:all && npm run package && echo 'Chrome Web Store package ready: leetpilot-extension.zip'",
+    "prepare:dev": "npm run package:dev && echo 'Development package ready: leetpilot-extension-dev.zip'",
+    "prepare:staging": "npm run package:staging && echo 'Staging package ready: leetpilot-extension-staging.zip'",
+    "icons:create": "node scripts/create-placeholder-icons.js",
+    "build:report": "node scripts/build.js production chrome && echo 'Build report available in dist/build-report.json'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.5",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/test/setup.js"],
+    "testMatch": ["<rootDir>/test/**/*.test.js"],
+    "collectCoverageFrom": [
+      "content/**/*.js",
+      "background/**/*.js",
+      "popup/**/*.js",
+      "!**/node_modules/**"
+    ]
+  },
+  "private": true
+}
