@@ -36,24 +36,21 @@ export class MessageRouter {
    * Setup default message routes
    */
   setupDefaultRoutes() {
-    // AI request routes
     this.addRoute('completion', 'ai');
     this.addRoute('explanation', 'ai');
     this.addRoute('optimization', 'ai');
     this.addRoute('hint', 'ai');
+    this.addRoute('chatMessage', 'ai');
     
-    // Configuration routes
     this.addRoute('getConfiguration', 'config');
     this.addRoute('saveConfiguration', 'config');
     this.addRoute('testAPIConnection', 'config');
+    this.addRoute('updateSetting', 'config');
     
-    // Hint management routes
     this.addRoute('resetHints', 'hints');
     
-    // Security routes
     this.addRoute('securityStatus', 'security');
     
-    // System routes
     this.addRoute('ping', 'system');
     this.addRoute('getStats', 'system');
   }
@@ -161,6 +158,12 @@ export class MessageRouter {
       case 'hint':
         if (!request.context && !request.problemTitle && !request.currentCode) {
           return { valid: false, error: 'Context is required for AI requests' };
+        }
+        break;
+      
+      case 'chatMessage':
+        if (!request.message) {
+          return { valid: false, error: 'Message is required for chat' };
         }
         break;
         

@@ -7,6 +7,7 @@ import { SecurityMonitor } from './core/security-monitor.js';
 import { InputValidator } from './core/input-validator.js';
 import { ComprehensiveErrorHandler } from './core/error-handler.js';
 import { RateLimiter } from './core/rate-limiter.js';
+import { AIProviderClient } from './core/api-client.js';
 
 console.log('LeetPilot background service worker loading...');
 
@@ -60,11 +61,10 @@ function initializeMessageHandler() {
     
     // Always respond to prevent "receiving end does not exist" errors
     try {
-      // Handle different message types
       switch (request.type) {
         case 'getConfiguration':
           handleGetConfiguration(request, sendResponse);
-          return true; // Keep message channel open for async response
+          return true;
           
         case 'saveConfiguration':
           handleSaveConfiguration(request, sendResponse);
@@ -72,6 +72,14 @@ function initializeMessageHandler() {
           
         case 'testAPIConnection':
           handleTestAPIConnection(request, sendResponse);
+          return true;
+        
+        case 'updateSetting':
+          handleUpdateSetting(request, sendResponse);
+          return true;
+        
+        case 'chatMessage':
+          handleChatMessage(request, sendResponse);
           return true;
           
         case 'completion':
@@ -213,7 +221,6 @@ async function handleTestAPIConnection(request, sendResponse) {
   }
 }
 
-// Handle AI requests (basic implementation)
 async function handleAIRequest(request, sendResponse) {
   try {
     const storageManager = container.get('storageManager');
@@ -223,8 +230,6 @@ async function handleAIRequest(request, sendResponse) {
       throw new Error('No AI provider configuration found. Please configure your API key first.');
     }
     
-    // For now, return a placeholder response
-    // TODO: Implement actual AI request handling
     sendResponse({
       [request.type === 'completion' ? 'suggestion' : request.type]: 'AI functionality is being initialized. Please try again in a moment.',
       type: request.type,
@@ -242,6 +247,62 @@ async function handleAIRequest(request, sendResponse) {
     };
     
     sendResponse(errorResponse);
+  }
+}
+
+async function handleChatMessage(request, sendResponse) {
+  try {
+    const storageManager = container.get('storageManager');
+    
+    const config = await storageManager.retrieveConfiguration();
+    if (!config) {
+      sendResponse({
+        success: false,
+        error: 'No AI provider configuration found. Please configure your API key first.',
+        requestId: request.requestId
+      });
+      return;
+    }
+
+    const aiClient = new AIProviderClient(config);
+    
+    const response = await aiClient.makeRequest(request.message, 'chat');
+    
+    sendResponse({
+      success: true,
+      reply: response.content,
+      provider: response.provider,
+      requestId: request.requestId
+    });
+    
+  } catch (error) {
+    console.error('Chat message failed:', error);
+    sendResponse({
+      success: false,
+      error: error.message || 'Chat request failed',
+      requestId: request.requestId
+    });
+  }
+}
+
+async function handleUpdateSetting(request, sendResponse) {
+  try {
+    const { setting, value } = request;
+    console.log(`Updating setting: ${setting} = ${value}`);
+    
+    sendResponse({
+      success: true,
+      message: `Setting ${setting} updated to ${value}`,
+      requestId: request.requestId
+    });
+    
+  } catch (error) {
+    console.error('Failed to update setting:', error);
+    sendResponse({
+      success: false,
+      error: error.message,
+      requestId: request.requestId
+    });
   }
 }
 

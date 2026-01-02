@@ -3,342 +3,915 @@
 <head>
   <meta charset="utf-8">
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      width: 380px;
-      padding: 20px;
+      width: 400px;
+      min-height: 500px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
-      line-height: 1.4;
-      margin: 0;
+      line-height: 1.5;
+      background: #ffffff;
+      color: #1a1a2e;
+      transition: background 0.3s, color 0.3s;
+      border-radius: 16px;
+      overflow: hidden;
     }
-    
+
+    body.dark {
+      background: #1a1a2e;
+      color: #e8e8e8;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
     .header {
-      text-align: center;
-      margin-bottom: 25px;
+      padding: 16px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: white;
     }
-    
+
+    body.dark .header {
+      border-bottom-color: #2d2d44;
+    }
+
     .logo {
-      font-size: 28px;
-      font-weight: bold;
-      color: #2563eb;
-      margin-bottom: 8px;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
-    
+
     .subtitle {
-      color: #6b7280;
-      font-size: 13px;
-    }
-    
-    .setup-guide {
-      background-color: #f0f9ff;
-      border: 1px solid #bae6fd;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-    
-    .setup-guide h3 {
-      margin: 0 0 10px 0;
-      color: #0369a1;
-      font-size: 14px;
-    }
-    
-    .setup-guide ol {
-      margin: 0;
-      padding-left: 20px;
       font-size: 12px;
-      color: #0c4a6e;
+      opacity: 0.9;
+      margin-top: 2px;
     }
-    
-    .setup-guide li {
-      margin-bottom: 5px;
+
+    .nav {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f9fafb;
     }
-    
-    .form-group {
-      margin-bottom: 18px;
+
+    body.dark .nav {
+      background: #16162a;
+      border-bottom-color: #2d2d44;
     }
-    
-    label {
+
+    .nav-item {
+      flex: 1;
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      color: #6366f1;
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .nav-item.active {
+      color: #6366f1;
+      border-bottom-color: #6366f1;
+      background: rgba(99, 102, 241, 0.08);
+    }
+
+    body.dark .nav-item {
+      color: #9ca3af;
+    }
+
+    body.dark .nav-item:hover,
+    body.dark .nav-item.active {
+      color: #a5b4fc;
+      border-bottom-color: #a5b4fc;
+      background: rgba(165, 180, 252, 0.1);
+    }
+
+    .nav-icon {
+      font-size: 16px;
+      margin-bottom: 4px;
       display: block;
-      margin-bottom: 6px;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .stat-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    body.dark .stat-card {
+      background: #1e1e36;
+      border-color: #2d2d44;
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .stat-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    body.dark .stat-title {
+      color: #e8e8e8;
+    }
+
+    .stat-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .stat-badge.active {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .stat-badge.inactive {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    body.dark .stat-badge.active {
+      background: #14532d;
+      color: #86efac;
+    }
+
+    body.dark .stat-badge.inactive {
+      background: #450a0a;
+      color: #fca5a5;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #6366f1;
+    }
+
+    body.dark .stat-value {
+      color: #a5b4fc;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .toggle-section {
+      margin-top: 16px;
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    body.dark .toggle-row {
+      border-bottom-color: #2d2d44;
+    }
+
+    .toggle-row:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-info {
+      flex: 1;
+    }
+
+    .toggle-label {
+      font-size: 13px;
       font-weight: 500;
       color: #374151;
     }
-    
-    .required {
-      color: #dc2626;
+
+    body.dark .toggle-label {
+      color: #e8e8e8;
     }
-    
-    select, input[type="text"], input[type="password"], input[type="number"] {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 14px;
-      box-sizing: border-box;
+
+    .toggle-desc {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #d1d5db;
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 380px;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-message.assistant {
+      align-self: flex-start;
+      background: #f3f4f6;
+      color: #374151;
+      border-bottom-left-radius: 4px;
+    }
+
+    body.dark .chat-message.assistant {
+      background: #2d2d44;
+      color: #e8e8e8;
+    }
+
+    .chat-input-container {
+      display: flex;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    body.dark .chat-input-container {
+      border-top-color: #2d2d44;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 24px;
+      font-size: 13px;
+      outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    
-    select:focus, input:focus {
-      outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+
+    body.dark .chat-input {
+      background: #1e1e36;
+      border-color: #2d2d44;
+      color: #e8e8e8;
     }
-    
-    .input-group {
-      display: flex;
-      gap: 10px;
+
+    .chat-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
     }
-    
-    .input-group .form-group {
-      flex: 1;
-      margin-bottom: 0;
-    }
-    
-    .button {
-      width: 100%;
-      padding: 12px;
-      background-color: #2563eb;
-      color: white;
+
+    .chat-send {
+      width: 40px;
+      height: 40px;
       border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 500;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: white;
       cursor: pointer;
-      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, opacity 0.2s;
     }
-    
-    .button:hover:not(:disabled) {
-      background-color: #1d4ed8;
+
+    .chat-send:hover {
+      transform: scale(1.05);
     }
-    
-    .button:disabled {
-      background-color: #9ca3af;
+
+    .chat-send:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
     }
-    
-    .button.secondary {
-      background-color: #6b7280;
-      margin-top: 10px;
+
+    .form-group {
+      margin-bottom: 16px;
     }
-    
-    .button.secondary:hover:not(:disabled) {
-      background-color: #4b5563;
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
     }
-    
-    .status {
-      margin-top: 15px;
+
+    body.dark .form-label {
+      color: #e8e8e8;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
       padding: 10px 12px;
-      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
       font-size: 13px;
-      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: white;
     }
-    
-    .status.success {
-      background-color: #dcfce7;
+
+    body.dark .form-input,
+    body.dark .form-select {
+      background: #1e1e36;
+      border-color: #2d2d44;
+      color: #e8e8e8;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      margin-top: 8px;
+    }
+
+    body.dark .btn-secondary {
+      background: #2d2d44;
+      color: #e8e8e8;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+
+    body.dark .btn-secondary:hover {
+      background: #3d3d5c;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status-msg {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .status-msg.success {
+      display: block;
+      background: #dcfce7;
       color: #166534;
       border: 1px solid #bbf7d0;
     }
-    
-    .status.error {
-      background-color: #fef2f2;
+
+    .status-msg.error {
+      display: block;
+      background: #fef2f2;
       color: #dc2626;
       border: 1px solid #fecaca;
     }
-    
-    .status.info {
-      background-color: #eff6ff;
+
+    .status-msg.info {
+      display: block;
+      background: #eff6ff;
       color: #1d4ed8;
       border: 1px solid #bfdbfe;
     }
-    
-    .help-text {
-      font-size: 12px;
+
+    body.dark .status-msg.success {
+      background: #14532d;
+      color: #86efac;
+      border-color: #166534;
+    }
+
+    body.dark .status-msg.error {
+      background: #450a0a;
+      color: #fca5a5;
+      border-color: #7f1d1d;
+    }
+
+    body.dark .status-msg.info {
+      background: #1e3a5f;
+      color: #93c5fd;
+      border-color: #1e40af;
+    }
+
+    .settings-section {
+      margin-bottom: 20px;
+    }
+
+    .settings-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       color: #6b7280;
-      margin-top: 5px;
-      line-height: 1.3;
+      margin-bottom: 12px;
     }
-    
-    .provider-info {
-      background-color: #f9fafb;
+
+    .shortcuts-list {
+      background: #f9fafb;
       border: 1px solid #e5e7eb;
-      border-radius: 6px;
-      padding: 10px;
-      margin-top: 8px;
-      font-size: 12px;
+      border-radius: 8px;
+      overflow: hidden;
     }
-    
-    .provider-info.hidden {
-      display: none;
+
+    body.dark .shortcuts-list {
+      background: #1e1e36;
+      border-color: #2d2d44;
     }
-    
-    .shortcuts {
-      margin-top: 25px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-    }
-    
-    .shortcuts h3 {
-      margin: 0 0 12px 0;
-      font-size: 14px;
-      color: #374151;
-    }
-    
+
     .shortcut-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e7eb;
       font-size: 12px;
     }
-    
+
+    body.dark .shortcut-item {
+      border-bottom-color: #2d2d44;
+    }
+
+    .shortcut-item:last-child {
+      border-bottom: none;
+    }
+
     .shortcut-key {
-      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-      background-color: #f3f4f6;
-      padding: 3px 8px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      background: #e5e7eb;
+      padding: 4px 8px;
       border-radius: 4px;
-      color: #374151;
       font-size: 11px;
-      border: 1px solid #d1d5db;
+      color: #374151;
     }
-    
-    .validation-feedback {
-      font-size: 12px;
-      margin-top: 5px;
-      padding: 5px 8px;
-      border-radius: 4px;
+
+    body.dark .shortcut-key {
+      background: #2d2d44;
+      color: #e8e8e8;
     }
-    
-    .validation-feedback.valid {
-      background-color: #dcfce7;
-      color: #166534;
+
+    .version-info {
+      text-align: center;
+      font-size: 11px;
+      color: #9ca3af;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 16px;
     }
-    
-    .validation-feedback.invalid {
-      background-color: #fef2f2;
-      color: #dc2626;
+
+    body.dark .version-info {
+      border-top-color: #2d2d44;
     }
-    
-    .loading {
+
+    .usage-bar {
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    body.dark .usage-bar {
+      background: #2d2d44;
+    }
+
+    .usage-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+
+    .usage-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .empty-chat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #9ca3af;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .empty-chat-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .empty-chat-text {
+      font-size: 13px;
+    }
+
+    .loading-spinner {
       display: inline-block;
       width: 16px;
       height: 16px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid #2563eb;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
       border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-right: 8px;
+      animation: spin 0.8s linear infinite;
     }
-    
+
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .help-text {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="logo">LeetPilot</div>
-    <div class="subtitle">AI-powered coding assistance for LeetCode</div>
-  </div>
+  <div class="container">
+    <div class="header">
+      <div class="logo">LeetPilot</div>
+      <div class="subtitle">AI-powered coding assistant</div>
+    </div>
 
-  <div id="setupGuide" class="setup-guide">
-    <h3>🚀 Quick Setup</h3>
-    <ol>
-      <li>Choose your AI provider (OpenAI, Anthropic, or Gemini)</li>
-      <li>Enter your API key from the provider's dashboard</li>
-      <li>Optionally customize the model and settings</li>
-      <li>Start coding on LeetCode with AI assistance!</li>
-    </ol>
-  </div>
-
-  <form id="configForm">
-    <div class="form-group">
-      <label for="provider">AI Provider <span class="required">*</span></label>
-      <select id="provider" name="provider" required>
-        <option value="">Select a provider...</option>
-        <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
-        <option value="anthropic">Anthropic (Claude)</option>
-        <option value="gemini">Google Gemini</option>
-        <option value="custom">Custom Provider (OpenAI Compatible)</option>
-      </select>
-      <div class="help-text">Choose your preferred AI service provider</div>
-      
-      <div id="providerInfo" class="provider-info hidden">
-        <div id="providerDetails"></div>
+    <div class="nav">
+      <div class="nav-item active" data-tab="main">
+        <span class="nav-icon">&#127968;</span>
+        Main
+      </div>
+      <div class="nav-item" data-tab="chat">
+        <span class="nav-icon">&#128172;</span>
+        Chat
+      </div>
+      <div class="nav-item" data-tab="model">
+        <span class="nav-icon">&#129302;</span>
+        Model
+      </div>
+      <div class="nav-item" data-tab="settings">
+        <span class="nav-icon">&#9881;</span>
+        Settings
       </div>
     </div>
 
-    <div id="customProviderFields" class="form-group" style="display: none;">
-      <label for="customApiUrl">Custom API Base URL <span class="required">*</span></label>
-      <input type="text" id="customApiUrl" name="customApiUrl" placeholder="https://api.example.com/v1/chat/completions">
-      <div class="help-text">Enter the base URL for your OpenAI-compatible API endpoint</div>
-      <div id="urlValidation" class="validation-feedback" style="display: none;"></div>
-    </div>
+    <div class="content">
+      <div id="tab-main" class="tab-panel active">
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Model Status</span>
+            <span id="modelStatus" class="stat-badge inactive">Not Configured</span>
+          </div>
+          <div id="activeModel" style="font-size: 13px; color: #6b7280;">No model selected</div>
+        </div>
 
-    <div class="form-group">
-      <label for="apiKey">API Key <span class="required">*</span></label>
-      <input type="password" id="apiKey" name="apiKey" placeholder="Enter your API key" required>
-      <div class="help-text">Your API key is stored locally and encrypted</div>
-      <div id="keyValidation" class="validation-feedback" style="display: none;"></div>
-    </div>
+        <div class="stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Usage Statistics</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div id="tokenCount" class="stat-value">0</div>
+              <div class="stat-label">Tokens</div>
+            </div>
+            <div class="stat-item">
+              <div id="requestCount" class="stat-value">0</div>
+              <div class="stat-label">Requests</div>
+            </div>
+            <div class="stat-item">
+              <div id="sessionCount" class="stat-value">0</div>
+              <div class="stat-label">Sessions</div>
+            </div>
+          </div>
+        </div>
 
-    <div class="input-group">
-      <div class="form-group">
-        <label for="model">Model</label>
-        <input type="text" id="model" name="model" placeholder="Default model will be used">
-        <div class="help-text">Leave empty for default</div>
+        <div class="toggle-section">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Auto Code Complete</div>
+              <div class="toggle-desc">Suggest code completions automatically</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleAutoComplete" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Auto Hints</div>
+              <div class="toggle-desc">Show contextual coding hints</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleAutoHint" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Auto Error Fix</div>
+              <div class="toggle-desc">Automatically suggest error fixes</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleAutoErrorFix">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Auto Optimization</div>
+              <div class="toggle-desc">Suggest code optimizations</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleAutoOptimize">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
       </div>
-      
-      <div class="form-group">
-        <label for="maxTokens">Max Tokens</label>
-        <input type="number" id="maxTokens" name="maxTokens" min="100" max="4000" placeholder="1000">
-        <div class="help-text">Response length limit</div>
+
+      <div id="tab-chat" class="tab-panel">
+        <div class="chat-container">
+          <div id="chatMessages" class="chat-messages">
+            <div class="empty-chat">
+              <div class="empty-chat-icon">&#128172;</div>
+              <div class="empty-chat-text">Start a conversation with the AI model</div>
+            </div>
+          </div>
+          <div class="chat-input-container">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Ask anything about your code...">
+            <button id="chatSend" class="chat-send">&#10148;</button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="form-group">
-      <label for="temperature">Temperature</label>
-      <input type="number" id="temperature" name="temperature" min="0" max="2" step="0.1" placeholder="0.7">
-      <div class="help-text">Creativity level (0 = focused, 2 = creative)</div>
-    </div>
+      <div id="tab-model" class="tab-panel">
+        <div class="form-group">
+          <label class="form-label">AI Provider</label>
+          <select id="provider" class="form-select">
+            <option value="">Select provider...</option>
+            <option value="openai">OpenAI (GPT-4, GPT-3.5)</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="custom">Custom (OpenAI Compatible)</option>
+          </select>
+        </div>
 
-    <button type="submit" class="button" id="saveButton">
-      <span id="saveButtonText">Save Configuration</span>
-    </button>
-    
-    <button type="button" class="button secondary" id="testButton" style="display: none;">
-      Test API Connection
-    </button>
-  </form>
+        <div id="customProviderFields" class="form-group" style="display: none;">
+          <label class="form-label">Custom API URL</label>
+          <input type="text" id="customApiUrl" class="form-input" placeholder="https://api.example.com/v1/chat/completions">
+          <div class="help-text">OpenAI-compatible API endpoint</div>
+        </div>
 
-  <div id="status" class="status" style="display: none;"></div>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <input type="password" id="apiKey" class="form-input" placeholder="Enter your API key">
+          <div class="help-text">Stored locally and encrypted</div>
+        </div>
 
-  <div class="shortcuts">
-    <h3>Keyboard Shortcuts</h3>
-    <div class="shortcut-item">
-      <span>Code Completion</span>
-      <span class="shortcut-key">Ctrl+Space</span>
-    </div>
-    <div class="shortcut-item">
-      <span>Error Explanation</span>
-      <span class="shortcut-key">Alt+E</span>
-    </div>
-    <div class="shortcut-item">
-      <span>Optimization</span>
-      <span class="shortcut-key">Alt+O</span>
-    </div>
-    <div class="shortcut-item">
-      <span>Hints</span>
-      <span class="shortcut-key">Alt+H</span>
+        <div class="form-group">
+          <label class="form-label">Model</label>
+          <input type="text" id="model" class="form-input" placeholder="Default model will be used">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Max Tokens</label>
+            <input type="number" id="maxTokens" class="form-input" min="100" max="4000" placeholder="1000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Temperature</label>
+            <input type="number" id="temperature" class="form-input" min="0" max="2" step="0.1" placeholder="0.7">
+          </div>
+        </div>
+
+        <div class="stat-card" style="margin-top: 16px;">
+          <div class="stat-header">
+            <span class="stat-title">Token Usage</span>
+          </div>
+          <div class="usage-bar">
+            <div id="usageFill" class="usage-fill" style="width: 0%"></div>
+          </div>
+          <div class="usage-text">
+            <span id="usedTokens">0 used</span>
+            <span id="totalTokens">0 limit</span>
+          </div>
+        </div>
+
+        <button id="saveConfig" class="btn btn-primary">Save Configuration</button>
+        <button id="testConnection" class="btn btn-secondary">Test Connection</button>
+
+        <div id="configStatus" class="status-msg"></div>
+      </div>
+
+      <div id="tab-settings" class="tab-panel">
+        <div class="settings-section">
+          <div class="settings-title">Appearance</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Dark Mode</div>
+              <div class="toggle-desc">Switch to dark theme</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleDarkMode">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">Notifications</div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Show Notifications</div>
+              <div class="toggle-desc">Display popup notifications</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleNotifications" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Sound Effects</div>
+              <div class="toggle-desc">Play sounds on events</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="toggleSound">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">Keyboard Shortcuts</div>
+          <div class="shortcuts-list">
+            <div class="shortcut-item">
+              <span>Code Completion</span>
+              <span class="shortcut-key">Ctrl+Space</span>
+            </div>
+            <div class="shortcut-item">
+              <span>Error Explanation</span>
+              <span class="shortcut-key">Alt+E</span>
+            </div>
+            <div class="shortcut-item">
+              <span>Optimization</span>
+              <span class="shortcut-key">Alt+O</span>
+            </div>
+            <div class="shortcut-item">
+              <span>Hints</span>
+              <span class="shortcut-key">Alt+H</span>
+            </div>
+          </div>
+        </div>
+
+        <button id="resetSettings" class="btn btn-secondary">Reset All Settings</button>
+
+        <div class="version-info">
+          <div id="buildVersion">LeetPilot v1.0.0</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="build-info" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280; text-align: center;">
-    <div id="buildVersion">Loading build info...</div>
-  </div>
-
-  <!-- Load core modules and expose them globally for popup use -->
   <script type="module" src="popup-modules.js"></script>
   <script type="module" src="popup.js"></script>
 </body>

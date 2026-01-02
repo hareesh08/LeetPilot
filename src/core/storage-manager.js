@@ -321,7 +321,6 @@ class StorageManager {
         return null;
       }
 
-      // Ensure we have the encryption key
       if (!this.encryptionKey && result.encryptionKey) {
         this.encryptionKey = result.encryptionKey;
       }
@@ -332,14 +331,16 @@ class StorageManager {
 
       const config = result.aiProviderConfig;
       
-      // Decrypt the API key
       const decryptedApiKey = await EncryptionUtils.decrypt(config.encryptedApiKey, this.encryptionKey);
       
       if (!decryptedApiKey) {
+        console.error('Decryption returned null. Config:', { 
+          hasEncryptedKey: !!config.encryptedApiKey,
+          hasEncryptionKey: !!this.encryptionKey 
+        });
         throw new Error('Failed to decrypt API key');
       }
 
-      // Create and return configuration object
       const aiConfig = new AIProviderConfig(
         config.provider,
         decryptedApiKey,

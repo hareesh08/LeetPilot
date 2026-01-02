@@ -25,6 +25,9 @@ export class PopupManager {
       // Load required modules
       await this.loadModules();
       
+      // Setup tab navigation
+      this.setupTabNavigation();
+      
       // Setup form handlers
       this.setupFormHandlers();
       
@@ -82,11 +85,25 @@ export class PopupManager {
     const apiKeyInput = document.getElementById('apiKey');
     const customApiUrlInput = document.getElementById('customApiUrl');
     const testButton = document.getElementById('testButton');
+    const saveConfigButton = document.getElementById('saveConfig');
+    const testConnectionButton = document.getElementById('testConnection');
 
     if (form) {
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         this.saveConfiguration();
+      });
+    }
+
+    if (saveConfigButton) {
+      saveConfigButton.addEventListener('click', () => {
+        this.saveConfiguration();
+      });
+    }
+
+    if (testConnectionButton) {
+      testConnectionButton.addEventListener('click', () => {
+        this.testAPIConnection();
       });
     }
 
@@ -118,6 +135,206 @@ export class PopupManager {
     }
   }
 
+  setupTabNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        const tabName = item.getAttribute('data-tab');
+        
+        navItems.forEach(nav => nav.classList.remove('active'));
+        item.classList.add('active');
+        
+        tabPanels.forEach(panel => {
+          panel.classList.remove('active');
+          if (panel.id === `tab-${tabName}`) {
+            panel.classList.add('active');
+          }
+        });
+      });
+    });
+
+    this.setupDarkModeToggle();
+    this.setupChatHandlers();
+    this.setupSettingsHandlers();
+    this.updateMainPageStatus();
+  }
+
+  async updateMainPageStatus() {
+    try {
+      const response = await this.sendMessageToBackground({ type: 'getConfiguration' });
+      
+      if (response?.success && response?.config) {
+        const config = response.config;
+        
+        const modelStatus = document.getElementById('modelStatus');
+        const activeModel = document.getElementById('activeModel');
+        
+        if (modelStatus) {
+          modelStatus.textContent = 'Configured';
+          modelStatus.className = 'stat-badge active';
+        }
+        
+        if (activeModel) {
+          const modelText = config.model || `Default ${config.provider} model`;
+          activeModel.textContent = `${config.provider} - ${modelText}`;
+        }
+      } else {
+        const modelStatus = document.getElementById('modelStatus');
+        const activeModel = document.getElementById('activeModel');
+        
+        if (modelStatus) {
+          modelStatus.textContent = 'Not Configured';
+          modelStatus.className = 'stat-badge inactive';
+        }
+        
+        if (activeModel) {
+          activeModel.textContent = 'No model selected';
+        }
+      }
+    } catch (error) {
+      console.log('Could not update main page status:', error);
+    }
+  }
+
+  setupDarkModeToggle() {
+    const darkModeToggle = document.getElementById('toggleDarkMode');
+    
+    if (darkModeToggle) {
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';
+      darkModeToggle.checked = isDarkMode;
+      if (isDarkMode) {
+        document.body.classList.add('dark');
+      }
+
+      darkModeToggle.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          document.body.classList.add('dark');
+          localStorage.setItem('darkMode', 'true');
+        } else {
+          document.body.classList.remove('dark');
+          localStorage.setItem('darkMode', 'false');
+        }
+      });
+    }
+  }
+
+  setupChatHandlers() {
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+    const chatMessages = document.getElementById('chatMessages');
+
+    const sendMessage = async () => {
+      if (!chatInput || !chatSend || !chatMessages) return;
+      
+      const message = chatInput.value.trim();
+      if (!message) return;
+
+      chatSend.disabled = true;
+      chatInput.disabled = true;
+
+      const emptyChat = chatMessages.querySelector('.empty-chat');
+      if (emptyChat) {
+        emptyChat.remove();
+      }
+
+      const userMessage = document.createElement('div');
+      userMessage.className = 'chat-message user';
+      userMessage.textContent = message;
+      chatMessages.appendChild(userMessage);
+
+      chatInput.value = '';
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      try {
+        const response = await this.sendMessageToBackground({
+          type: 'chatMessage',
+          message: message
+        });
+
+        console.log('Chat response:', response);
+
+        if (response?.error) {
+          const errorMessage = document.createElement('div');
+          errorMessage.className = 'chat-message assistant';
+          errorMessage.textContent = 'Error: ' + response.error;
+          chatMessages.appendChild(errorMessage);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+          const assistantMessage = document.createElement('div');
+          assistantMessage.className = 'chat-message assistant';
+          assistantMessage.textContent = response?.reply || 'Sorry, I could not process your request.';
+          chatMessages.appendChild(assistantMessage);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      } catch (error) {
+        console.error('Chat error:', error);
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'chat-message assistant';
+        errorMessage.textContent = 'Error: ' + error.message;
+        chatMessages.appendChild(errorMessage);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } finally {
+        chatSend.disabled = false;
+        chatInput.disabled = false;
+        chatInput.focus();
+      }
+    };
+
+    if (chatSend) {
+      chatSend.addEventListener('click', sendMessage);
+    }
+
+    if (chatInput) {
+      chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          sendMessage();
+        }
+      });
+    }
+  }
+
+  setupSettingsHandlers() {
+    const toggles = {
+      toggleAutoComplete: 'autoComplete',
+      toggleAutoHint: 'autoHint',
+      toggleAutoErrorFix: 'autoErrorFix',
+      toggleAutoOptimize: 'autoOptimize',
+      toggleNotifications: 'notifications',
+      toggleSound: 'sound'
+    };
+
+    Object.entries(toggles).forEach(([toggleId, settingKey]) => {
+      const toggle = document.getElementById(toggleId);
+      if (toggle) {
+        const savedValue = localStorage.getItem(settingKey);
+        if (savedValue !== null) {
+          toggle.checked = savedValue === 'true';
+        }
+
+        toggle.addEventListener('change', (e) => {
+          localStorage.setItem(settingKey, e.target.checked);
+          this.sendMessageToBackground({
+            type: 'updateSetting',
+            setting: settingKey,
+            value: e.target.checked
+          });
+        });
+      }
+    });
+
+    const resetSettings = document.getElementById('resetSettings');
+    if (resetSettings) {
+      resetSettings.addEventListener('click', () => {
+        if (confirm('Are you sure you want to reset all settings?')) {
+          localStorage.clear();
+          location.reload();
+        }
+      });
+    }
+  }
+
   /**
    * Load saved configuration
    */
@@ -140,7 +357,7 @@ export class PopupManager {
         const customApiUrlInput = document.getElementById('customApiUrl');
         
         if (providerSelect) providerSelect.value = config.provider;
-        if (apiKeyInput) apiKeyInput.value = '[CONFIGURED]'; // Don't show actual key
+        if (apiKeyInput) apiKeyInput.value = '••••••••••••••••••••••••••••••••';
         if (modelInput) modelInput.value = config.model || '';
         if (maxTokensInput) maxTokensInput.value = config.maxTokens || '';
         if (temperatureInput) temperatureInput.value = config.temperature || '';
@@ -179,7 +396,7 @@ export class PopupManager {
     const customApiUrlInput = document.getElementById('customApiUrl');
 
     const provider = providerSelect?.value;
-    const apiKey = apiKeyInput?.value?.trim();
+    let apiKey = apiKeyInput?.value?.trim();
     const model = modelInput?.value?.trim();
     const maxTokens = parseInt(maxTokensInput?.value) || 1000;
     const temperature = parseFloat(temperatureInput?.value) || 0.7;
@@ -187,18 +404,26 @@ export class PopupManager {
 
     console.log('Saving configuration:', { provider, model, maxTokens, temperature });
 
-    // Validate inputs
     if (!provider) {
       this.showStatus('Please select an AI provider', 'error');
       return;
     }
 
-    if (!apiKey || apiKey === '[CONFIGURED]') {
-      this.showStatus('Please enter your API key', 'error');
+    if (apiKey === '••••••••••••••••••••••••••••••••') {
+      const existingConfig = await this.sendMessageToBackground({ type: 'getConfiguration' });
+      if (existingConfig?.success && existingConfig?.config?.apiKey) {
+        apiKey = existingConfig.config.apiKey;
+      } else {
+        this.showStatus('Please enter your API key', 'error');
+        return;
+      }
+    }
+
+    if (!apiKey || apiKey.length < 10) {
+      this.showStatus('Please enter a valid API key', 'error');
       return;
     }
 
-    // Validate using input validator if available
     if (this.inputValidator) {
       const configValidation = this.inputValidator.validateConfiguration({
         provider: provider,
@@ -213,22 +438,17 @@ export class PopupManager {
         this.showStatus('Configuration validation failed: ' + configValidation.errors.join(', '), 'error');
         return;
       }
-    } else {
-      // Fallback validation when input validator is not available
-      if (!provider || !apiKey || apiKey.length < 10) {
-        this.showStatus('Provider and API key are required', 'error');
-        return;
-      }
     }
 
-    // Show loading state
-    const saveButton = document.getElementById('saveButton');
-    const saveButtonText = document.getElementById('saveButtonText');
+    const saveButton = document.getElementById('saveConfig');
+    const saveButtonText = saveButton;
     if (saveButton) saveButton.disabled = true;
-    if (saveButtonText) saveButtonText.innerHTML = '<span class="loading"></span>Saving...';
+    if (saveButtonText) {
+      const originalText = saveButtonText.textContent;
+      saveButtonText.innerHTML = '<span class="loading-spinner"></span> Saving...';
+    }
 
     try {
-      // Send configuration to background script
       const response = await this.sendMessageToBackground({
         type: 'saveConfiguration',
         config: {
@@ -244,16 +464,15 @@ export class PopupManager {
       if (response && response.success) {
         this.showStatus('Configuration saved successfully!', 'success');
         
-        // Hide setup guide and show test button
         const setupGuide = document.getElementById('setupGuide');
         const testButton = document.getElementById('testButton');
         if (setupGuide) setupGuide.style.display = 'none';
         if (testButton) testButton.style.display = 'block';
         
-        // Update API key field to show it's configured
-        if (apiKeyInput) apiKeyInput.value = '[CONFIGURED]';
+        if (apiKeyInput) apiKeyInput.value = '••••••••••••••••••••••••••••••••';
         
-        // Test the API key
+        this.updateMainPageStatus();
+        
         setTimeout(() => {
           this.testAPIConnection();
         }, 1000);
@@ -265,7 +484,6 @@ export class PopupManager {
       console.error('Failed to save configuration:', error);
       this.showStatus('Failed to save configuration: ' + error.message, 'error');
     } finally {
-      // Reset button state
       if (saveButton) saveButton.disabled = false;
       if (saveButtonText) saveButtonText.textContent = 'Save Configuration';
     }
@@ -276,15 +494,13 @@ export class PopupManager {
    */
   async testAPIConnection() {
     try {
-      // Show testing status
       this.showStatus('Testing API connection...', 'info');
-      const testButton = document.getElementById('testButton');
+      const testButton = document.getElementById('testConnection');
       if (testButton) {
         testButton.disabled = true;
-        testButton.innerHTML = '<span class="loading"></span>Testing...';
+        testButton.innerHTML = '<span class="loading-spinner"></span> Testing...';
       }
 
-      // Send test request to background script
       const response = await this.sendMessageToBackground({
         type: 'testAPIConnection',
         config: await this.getCurrentFormConfig()
@@ -292,7 +508,7 @@ export class PopupManager {
 
       if (testButton) {
         testButton.disabled = false;
-        testButton.textContent = 'Test API Connection';
+        testButton.textContent = 'Test Connection';
       }
 
       if (response && response.success) {
@@ -302,10 +518,10 @@ export class PopupManager {
       }
 
     } catch (error) {
-      const testButton = document.getElementById('testButton');
+      const testButton = document.getElementById('testConnection');
       if (testButton) {
         testButton.disabled = false;
-        testButton.textContent = 'Test API Connection';
+        testButton.textContent = 'Test Connection';
       }
       this.showStatus('Failed to test API connection: ' + error.message, 'error');
     }
@@ -322,9 +538,8 @@ export class PopupManager {
     const temperatureInput = document.getElementById('temperature');
     const customApiUrlInput = document.getElementById('customApiUrl');
 
-    // If API key shows [CONFIGURED], get the actual config from background
     let apiKey = apiKeyInput?.value?.trim();
-    if (apiKey === '[CONFIGURED]') {
+    if (apiKey === '••••••••••••••••••••••••••••••••') {
       const response = await this.sendMessageToBackground({ type: 'getConfiguration' });
       if (response && response.success && response.config) {
         return response.config;
@@ -508,8 +723,7 @@ export class PopupManager {
     const provider = providerSelect.value;
     const apiKey = apiKeyInput.value.trim();
     
-    // Skip validation if showing [CONFIGURED]
-    if (apiKey === '[CONFIGURED]') {
+    if (apiKey === '••••••••••••••••••••••••••••••••') {
       keyValidation.textContent = '✓ API key is configured';
       keyValidation.className = 'validation-feedback valid';
       keyValidation.style.display = 'block';
@@ -623,13 +837,12 @@ export class PopupManager {
    * Show status message
    */
   showStatus(message, type) {
-    const statusDiv = document.getElementById('status');
+    const statusDiv = document.getElementById('configStatus');
     if (statusDiv) {
       statusDiv.textContent = message;
-      statusDiv.className = `status ${type}`;
+      statusDiv.className = `status-msg ${type}`;
       statusDiv.style.display = 'block';
 
-      // Hide status after 5 seconds for success messages
       if (type === 'success') {
         setTimeout(() => {
           statusDiv.style.display = 'none';

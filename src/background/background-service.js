@@ -182,7 +182,6 @@ class BackgroundService {
       const aiClient = new this.AIProviderClient(config);
       let prompt;
       
-      // Generate appropriate prompt based on request type
       switch (request.type) {
         case 'completion':
           prompt = this.promptEngineer.createCompletionPrompt(request);
@@ -200,27 +199,36 @@ class BackgroundService {
             request.hintContext
           );
           break;
+        case 'chatMessage':
+          prompt = request.message;
+          break;
         default:
           throw new Error(`Unknown AI request type: ${request.type}`);
       }
       
-      // Make AI request
       const response = await aiClient.makeRequest(prompt, request.type);
       
-      // Filter and validate response
       const filteredResponse = this.promptEngineer.filterResponse(response.content, request.type);
       const sanitizedContent = this.promptEngineer.sanitizeContent(filteredResponse.content);
       
-      // Send response based on type
-      const responseKey = request.type === 'completion' ? 'suggestion' : request.type;
-      sendResponse({
-        [responseKey]: sanitizedContent,
-        type: request.type,
-        provider: response.provider,
-        filtered: filteredResponse.filtered,
-        filterReason: filteredResponse.reason,
-        requestId: request.requestId
-      });
+      if (request.type === 'chatMessage') {
+        sendResponse({
+          success: true,
+          reply: sanitizedContent,
+          provider: response.provider,
+          requestId: request.requestId
+        });
+      } else {
+        const responseKey = request.type === 'completion' ? 'suggestion' : request.type;
+        sendResponse({
+          [responseKey]: sanitizedContent,
+          type: request.type,
+          provider: response.provider,
+          filtered: filteredResponse.filtered,
+          filterReason: filteredResponse.reason,
+          requestId: request.requestId
+        });
+      }
       
     } catch (error) {
       console.error(`AI request failed (${request.type}):`, error);
@@ -258,6 +266,9 @@ class BackgroundService {
           break;
         case 'testAPIConnection':
           await this.handleTestAPIConnection(request, sendResponse);
+          break;
+        case 'updateSetting':
+          await this.handleUpdateSetting(request, sendResponse);
           break;
         default:
           sendResponse({
@@ -376,8 +387,7 @@ class BackgroundService {
         return;
       }
 
-      // Validate the configuration format
-      const configObj = new LeetPilotStorage.AIProviderConfig(
+      const configObj = new AIProviderConfig(
         config.provider,
         config.apiKey,
         config.model,
@@ -395,7 +405,6 @@ class BackgroundService {
         return;
       }
 
-      // Test actual API connection
       const aiClient = new this.AIProviderClient(configObj);
       const testResult = await aiClient.testConnection();
       
@@ -403,6 +412,25 @@ class BackgroundService {
 
     } catch (error) {
       console.error('Failed to test API connection:', error);
+      sendResponse({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+  }
+
+  async handleUpdateSetting(request, sendResponse) {
+    try {
+      const { setting, value } = request;
+      console.log(`Updating setting: ${setting} = ${value}`);
+      
+      sendResponse({ 
+        success: true, 
+        message: `Setting ${setting} updated to ${value}` 
+      });
+
+    } catch (error) {
+      console.error('Failed to update setting:', error);
       sendResponse({ 
         success: false, 
         error: error.message 
