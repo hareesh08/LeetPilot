@@ -102,7 +102,7 @@ export class AIProviderClient {
     const data = await response.json();
     
     return {
-      content: data.choices[0]?.message?.content || '',
+      content: data.choices?.[0]?.message?.content || '',
       provider: 'openai',
       model: this.config.model,
       usage: data.usage
@@ -145,7 +145,7 @@ export class AIProviderClient {
     const data = await response.json();
     
     return {
-      content: data.content[0]?.text || '',
+      content: data.content?.[0]?.text || '',
       provider: 'anthropic',
       model: this.config.model,
       usage: data.usage
@@ -190,7 +190,7 @@ export class AIProviderClient {
     const data = await response.json();
     
     return {
-      content: data.candidates[0]?.content?.parts[0]?.text || '',
+      content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
       provider: 'gemini',
       model: this.config.model,
       usage: data.usageMetadata
@@ -232,7 +232,7 @@ export class AIProviderClient {
     const data = await response.json();
     
     return {
-      content: data.choices[0]?.message?.content || '',
+      content: data.choices?.[0]?.message?.content || '',
       provider: 'custom',
       model: this.config.model,
       usage: data.usage

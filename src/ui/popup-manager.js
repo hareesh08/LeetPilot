@@ -193,8 +193,34 @@ export class PopupManager {
           activeModel.textContent = 'No model selected';
         }
       }
+
+      await this.updateStatistics();
     } catch (error) {
       console.log('Could not update main page status:', error);
+    }
+  }
+
+  async updateStatistics() {
+    try {
+      const stats = await chrome.storage.local.get(['tokenCount', 'requestCount', 'sessionCount']);
+      
+      const tokenCount = document.getElementById('tokenCount');
+      const requestCount = document.getElementById('requestCount');
+      const sessionCount = document.getElementById('sessionCount');
+      
+      if (tokenCount) {
+        tokenCount.textContent = stats.tokenCount || 0;
+      }
+      
+      if (requestCount) {
+        requestCount.textContent = stats.requestCount || 0;
+      }
+      
+      if (sessionCount) {
+        sessionCount.textContent = stats.sessionCount || 0;
+      }
+    } catch (error) {
+      console.log('Could not update statistics:', error);
     }
   }
 
@@ -330,6 +356,29 @@ export class PopupManager {
         if (confirm('Are you sure you want to reset all settings?')) {
           localStorage.clear();
           location.reload();
+        }
+      });
+    }
+
+    const exportSettings = document.getElementById('exportSettings');
+    if (exportSettings) {
+      exportSettings.addEventListener('click', () => {
+        this.exportConfiguration();
+      });
+    }
+
+    const importSettings = document.getElementById('importSettings');
+    const importFileInput = document.getElementById('importFileInput');
+    if (importSettings && importFileInput) {
+      importSettings.addEventListener('click', () => {
+        importFileInput.click();
+      });
+
+      importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          this.importConfiguration(file);
+          importFileInput.value = '';
         }
       });
     }
@@ -830,6 +879,87 @@ export class PopupManager {
     } catch (manifestError) {
       console.log('Could not load manifest version:', manifestError);
       buildVersionElement.textContent = 'v1.0.0';
+    }
+  }
+
+  /**
+   * Export configuration to JSON file
+   */
+  async exportConfiguration() {
+    try {
+      const response = await this.sendMessageToBackground({ type: 'getConfiguration' });
+      
+      if (!response?.success || !response?.config) {
+        this.showStatus('No configuration found to export', 'error');
+        return;
+      }
+
+      const config = response.config;
+      const exportData = {
+        provider: config.provider,
+        apiKey: config.apiKey,
+        model: config.model,
+        maxTokens: config.maxTokens,
+        temperature: config.temperature,
+        customApiUrl: config.customApiUrl,
+        exportedAt: new Date().toISOString(),
+        version: '1.0.0'
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leetpilot-config-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showStatus('Configuration exported successfully!', 'success');
+    } catch (error) {
+      console.error('Export failed:', error);
+      this.showStatus('Failed to export configuration: ' + error.message, 'error');
+    }
+  }
+
+  /**
+   * Import configuration from JSON file
+   */
+  async importConfiguration(file) {
+    try {
+      const text = await file.text();
+      const importData = JSON.parse(text);
+
+      if (!importData.provider || !importData.apiKey) {
+        this.showStatus('Invalid configuration file: missing required fields', 'error');
+        return;
+      }
+
+      const config = {
+        provider: importData.provider,
+        apiKey: importData.apiKey,
+        model: importData.model || null,
+        maxTokens: importData.maxTokens || 1000,
+        temperature: importData.temperature || 0.7,
+        customApiUrl: importData.customApiUrl || null
+      };
+
+      const response = await this.sendMessageToBackground({
+        type: 'saveConfiguration',
+        config: config
+      });
+
+      if (response?.success) {
+        this.showStatus('Configuration imported successfully!', 'success');
+        await this.loadConfiguration();
+        this.updateMainPageStatus();
+      } else {
+        this.showStatus('Failed to import configuration: ' + (response?.error || 'Unknown error'), 'error');
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      this.showStatus('Failed to import configuration: ' + error.message, 'error');
     }
   }
 

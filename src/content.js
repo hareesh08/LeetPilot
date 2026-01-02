@@ -3,20 +3,36 @@
 
 console.log('LeetPilot content script loading...');
 
-// Import and initialize the modular content orchestrator
-import('./content/content-orchestrator.js')
-  .then(() => {
-    console.log('LeetPilot modular content system loaded successfully');
-  })
-  .catch(error => {
-    console.error('Failed to load LeetPilot content system:', error);
+import { ContentOrchestrator } from './content/content-orchestrator.js';
+
+let orchestrator = null;
+
+function initializeOrchestrator() {
+  try {
+    console.log('Initializing content orchestrator...');
+    if (!orchestrator) {
+      orchestrator = new ContentOrchestrator();
+      orchestrator.initialize();
+    }
+  } catch (error) {
+    console.error('Failed to initialize content orchestrator:', error);
     
-    // Fallback: Basic error reporting
     chrome.runtime.sendMessage({
       type: 'error',
-      message: 'Content script failed to load',
+      message: 'Content script failed to initialize',
       error: error.message
     }).catch(() => {
       console.error('Failed to report content script error to background');
     });
-  });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeOrchestrator);
+} else {
+  initializeOrchestrator();
+}
+
+window.LeetPilotOrchestrator = orchestrator;
+
+console.log('LeetPilot content script loaded');

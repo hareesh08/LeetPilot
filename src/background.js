@@ -30,15 +30,21 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('LeetPilot extension installed/updated');
   
   if (details.reason === 'install') {
-    // Open configuration popup on first install
     try {
       await chrome.action.openPopup();
     } catch (error) {
       console.log('Could not open popup automatically:', error.message);
     }
+
+    await chrome.storage.local.set({
+      requestCount: 0,
+      tokenCount: 0,
+      sessionCount: 0
+    });
   }
   
-  // Initialize services
+  await incrementSessionCount();
+  
   initializeServices();
 });
 
@@ -229,6 +235,8 @@ async function handleAIRequest(request, sendResponse) {
     if (!config) {
       throw new Error('No AI provider configuration found. Please configure your API key first.');
     }
+
+    await incrementRequestCount();
     
     sendResponse({
       [request.type === 'completion' ? 'suggestion' : request.type]: 'AI functionality is being initialized. Please try again in a moment.',
@@ -264,9 +272,13 @@ async function handleChatMessage(request, sendResponse) {
       return;
     }
 
+    await incrementRequestCount();
+
     const aiClient = new AIProviderClient(config);
     
     const response = await aiClient.makeRequest(request.message, 'chat');
+    
+    await incrementTokenCount(response.usage?.total_tokens || 100);
     
     sendResponse({
       success: true,
@@ -282,6 +294,36 @@ async function handleChatMessage(request, sendResponse) {
       error: error.message || 'Chat request failed',
       requestId: request.requestId
     });
+  }
+}
+
+async function incrementRequestCount() {
+  try {
+    const result = await chrome.storage.local.get(['requestCount']);
+    const newCount = (result.requestCount || 0) + 1;
+    await chrome.storage.local.set({ requestCount: newCount });
+  } catch (error) {
+    console.error('Failed to increment request count:', error);
+  }
+}
+
+async function incrementTokenCount(tokens) {
+  try {
+    const result = await chrome.storage.local.get(['tokenCount']);
+    const newCount = (result.tokenCount || 0) + tokens;
+    await chrome.storage.local.set({ tokenCount: newCount });
+  } catch (error) {
+    console.error('Failed to increment token count:', error);
+  }
+}
+
+async function incrementSessionCount() {
+  try {
+    const result = await chrome.storage.local.get(['sessionCount']);
+    const newCount = (result.sessionCount || 0) + 1;
+    await chrome.storage.local.set({ sessionCount: newCount });
+  } catch (error) {
+    console.error('Failed to increment session count:', error);
   }
 }
 

@@ -156,9 +156,6 @@ export class MessageRouter {
       case 'explanation':
       case 'optimization':
       case 'hint':
-        if (!request.context && !request.problemTitle && !request.currentCode) {
-          return { valid: false, error: 'Context is required for AI requests' };
-        }
         break;
       
       case 'chatMessage':
