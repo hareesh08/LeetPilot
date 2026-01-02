@@ -32,10 +32,10 @@ function validatePackage() {
   // Check required files in dist directory
   const requiredFiles = [
     'manifest.json',
-    'background/background.js',
-    'content/content.js',
-    'popup/popup.html',
-    'popup/popup.js',
+    'src/background.js',
+    'src/content.js',
+    'src/ui/popup.html',
+    'src/ui/popup.js',
     'icons/icon16.png',
     'icons/icon32.png',
     'icons/icon48.png',

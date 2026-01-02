@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-01T20:05:31.992Z",
+  "timestamp": "2026-01-02T11:38:56.772Z",
   "environment": {
     "name": "Development",
     "config": {
@@ -25,30 +25,35 @@
         "https://leetcode.com/*",
         "https://api.openai.com/*",
         "https://api.anthropic.com/*",
-        "https://generativelanguage.googleapis.com/*"
+        "https://generativelanguage.googleapis.com/*",
+        "https://apis.iflow.cn/*",
+        "https://*/*"
       ]
     }
   },
   "build": {
-    "version": "1.0.0-2026-01-01T20-05-31",
+    "version": "1.0.0-2026-01-02T11-38-56",
     "outputDir": "dist-dev",
     "stats": {
-      "totalFiles": 16,
-      "totalSize": 271074,
+      "totalFiles": 43,
+      "totalSize": 327020,
       "fileTypes": {
-        ".js": 7,
         ".json": 2,
         ".png": 4,
-        ".md": 1,
-        ".html": 1,
-        ".ts": 1
+        ".js": 36,
+        ".html": 1
       },
       "directories": [
         "background",
         "content",
         "icons",
         "popup",
-        "src"
+        "src",
+        "src\\background",
+        "src\\content",
+        "src\\core",
+        "src\\ui",
+        "src\\utils"
       ]
     }
   },

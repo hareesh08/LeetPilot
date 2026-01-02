@@ -1,8 +1,8 @@
 {
   "environment": "development",
   "target": "chrome",
-  "buildTime": "2026-01-01T20:05:31.984Z",
-  "buildVersion": "1.0.0-2026-01-01T20-05-31",
+  "buildTime": "2026-01-02T11:38:56.728Z",
+  "buildVersion": "1.0.0-2026-01-02T11-38-56",
   "config": {
     "environment": {
       "name": "Development",
@@ -24,7 +24,9 @@
         "https://leetcode.com/*",
         "https://api.openai.com/*",
         "https://api.anthropic.com/*",
-        "https://generativelanguage.googleapis.com/*"
+        "https://generativelanguage.googleapis.com/*",
+        "https://apis.iflow.cn/*",
+        "https://*/*"
       ]
     }
   }

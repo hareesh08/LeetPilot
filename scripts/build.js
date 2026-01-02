@@ -296,10 +296,10 @@ class ExtensionBuilder {
     // Check required files
     const requiredFiles = [
       'manifest.json',
-      'background/background.js',
-      'content/content.js',
-      'popup/popup.html',
-      'popup/popup.js'
+      'src/background.js',
+      'src/content.js',
+      'src/ui/popup.html',
+      'src/ui/popup.js'
     ];
 
     const missingFiles = [];

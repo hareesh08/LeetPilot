@@ -33,23 +33,30 @@
     "icons:create": "node scripts/create-placeholder-icons.js",
     "build:report": "node scripts/build.js production chrome && echo 'Build report available in dist/build-report.json'"
   },
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.5.3",
-    "jest": "^29.7.0",
     "@types/jest": "^29.5.5",
-    "jest-environment-jsdom": "^29.7.0"
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "typescript": "^5.5.3"
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "setupFilesAfterEnv": ["<rootDir>/test/setup.js"],
-    "testMatch": ["<rootDir>/test/**/*.test.js"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/test/setup.js"
+    ],
+    "testMatch": [
+      "<rootDir>/test/**/*.test.js"
+    ],
     "collectCoverageFrom": [
       "content/**/*.js",
       "background/**/*.js",
-      "popup/**/*.js",
+      "src/**/*.js",
       "!**/node_modules/**"
-    ]
+    ],
+    "transform": {},
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
   },
   "private": true
 }

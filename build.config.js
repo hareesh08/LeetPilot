@@ -50,7 +50,9 @@ class BuildConfig {
           'https://leetcode.com/*',
           'https://api.openai.com/*',
           'https://api.anthropic.com/*',
-          'https://generativelanguage.googleapis.com/*'
+          'https://generativelanguage.googleapis.com/*',
+          'https://apis.iflow.cn/*',
+          'https://*/*'
         ]
       },
       edge: {
@@ -64,16 +66,15 @@ class BuildConfig {
           'https://leetcode.com/*',
           'https://api.openai.com/*',
           'https://api.anthropic.com/*',
-          'https://generativelanguage.googleapis.com/*'
+          'https://generativelanguage.googleapis.com/*',
+          'https://apis.iflow.cn/*',
+          'https://*/*'
         ]
       }
     };
 
     this.filesToCopy = [
       'manifest.json',
-      'background/',
-      'content/',
-      'popup/',
       'icons/',
       'src/'
     ];
@@ -238,7 +239,7 @@ class BuildConfig {
     }
 
     // Check if required directories exist
-    const requiredDirs = ['background', 'content', 'popup', 'icons'];
+    const requiredDirs = ['src', 'icons'];
     for (const dir of requiredDirs) {
       if (!fs.existsSync(dir)) {
         errors.push(`Required directory missing: ${dir}`);
