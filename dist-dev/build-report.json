@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-02T21:08:25.497Z",
+  "timestamp": "2026-01-03T20:51:01.482Z",
   "environment": {
     "name": "Development",
     "config": {
@@ -32,15 +32,16 @@
     }
   },
   "build": {
-    "version": "1.0.0-2026-01-02T21-08-25",
+    "version": "1.0.0-2026-01-03T20-51-01",
     "outputDir": "dist-dev",
     "stats": {
-      "totalFiles": 43,
-      "totalSize": 359138,
+      "totalFiles": 46,
+      "totalSize": 2705901,
       "fileTypes": {
         ".json": 2,
-        ".png": 4,
+        ".png": 6,
         ".js": 36,
+        ".css": 1,
         ".html": 1
       },
       "directories": [

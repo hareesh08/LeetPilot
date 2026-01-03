@@ -155,11 +155,53 @@ class BackgroundService {
   }
 
   /**
+   * Check if a feature is enabled in settings
+   */
+  async isFeatureEnabled(featureName) {
+    try {
+      const settingsKey = 'leetpilot_settings';
+      const result = await chrome.storage.local.get(settingsKey);
+      const settings = result[settingsKey] || {};
+      
+      // Default to true if setting doesn't exist (for backward compatibility)
+      return settings[featureName] !== false;
+    } catch (error) {
+      console.error('Error checking feature setting:', error);
+      return true; // Default to enabled on error
+    }
+  }
+
+  /**
    * Handle AI requests (completion, explanation, optimization, hint)
    */
   async handleAIRequest(request, sendResponse) {
     try {
       console.log('Handling AI request:', request.type);
+      
+      // Check if the feature is enabled (only for auto-triggered requests)
+      if (request.isAutoTriggered) {
+        const featureMap = {
+          'completion': 'autoComplete',
+          'hint': 'autoHint',
+          'explanation': 'autoErrorFix',
+          'optimization': 'autoOptimize'
+        };
+        
+        const featureName = featureMap[request.type];
+        if (featureName) {
+          const isEnabled = await this.isFeatureEnabled(featureName);
+          if (!isEnabled) {
+            console.log(`Feature ${featureName} is disabled, skipping request`);
+            sendResponse({
+              success: false,
+              skipped: true,
+              message: `${request.type} is currently disabled in settings`,
+              requestId: request.requestId
+            });
+            return;
+          }
+        }
+      }
       
       // Check if modules are loaded
       if (!this.promptEngineer || !this.AIProviderClient) {
@@ -269,6 +311,9 @@ class BackgroundService {
           break;
         case 'updateSetting':
           await this.handleUpdateSetting(request, sendResponse);
+          break;
+        case 'getSettings':
+          await this.handleGetSettings(sendResponse);
           break;
         default:
           sendResponse({
@@ -424,6 +469,15 @@ class BackgroundService {
       const { setting, value } = request;
       console.log(`Updating setting: ${setting} = ${value}`);
       
+      // Store setting in chrome.storage.local
+      const settingsKey = 'leetpilot_settings';
+      const currentSettings = await chrome.storage.local.get(settingsKey);
+      const settings = currentSettings[settingsKey] || {};
+      
+      settings[setting] = value;
+      
+      await chrome.storage.local.set({ [settingsKey]: settings });
+      
       sendResponse({ 
         success: true, 
         message: `Setting ${setting} updated to ${value}` 
@@ -431,6 +485,26 @@ class BackgroundService {
 
     } catch (error) {
       console.error('Failed to update setting:', error);
+      sendResponse({ 
+        success: false, 
+        error: error.message 
+      });
+    }
+  }
+
+  async handleGetSettings(sendResponse) {
+    try {
+      const settingsKey = 'leetpilot_settings';
+      const result = await chrome.storage.local.get(settingsKey);
+      const settings = result[settingsKey] || {};
+      
+      sendResponse({ 
+        success: true, 
+        settings: settings 
+      });
+
+    } catch (error) {
+      console.error('Failed to get settings:', error);
       sendResponse({ 
         success: false, 
         error: error.message 

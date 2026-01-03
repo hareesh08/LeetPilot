@@ -8,6 +8,7 @@ import { InputValidator } from './core/input-validator.js';
 import { ComprehensiveErrorHandler } from './core/error-handler.js';
 import { RateLimiter } from './core/rate-limiter.js';
 import { AIProviderClient } from './core/api-client.js';
+import { PromptEngineer } from './core/prompt-engineer.js';
 
 console.log('LeetPilot background service worker loading...');
 
@@ -21,9 +22,18 @@ function initializeServices() {
   container.register('securityMonitor', () => new SecurityMonitor());
   container.register('errorHandler', () => new ComprehensiveErrorHandler());
   container.register('rateLimiter', () => new RateLimiter());
+  container.register('promptEngineer', () => new PromptEngineer());
   
   console.log('Services registered successfully');
 }
+
+// Command name mapping
+const COMMAND_ACTION_MAP = {
+  'trigger-completion': 'completion',
+  'trigger-explanation': 'explanation',
+  'trigger-optimization': 'optimization',
+  'trigger-hint': 'hint'
+};
 
 // Extension lifecycle handlers
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -57,6 +67,9 @@ console.log('Initializing services immediately');
 initializeServices();
 
 console.log('LeetPilot background service worker loaded and ready');
+
+// Initialize commands listener for keyboard shortcuts
+initializeCommandsListener();
 
 // Initialize message handler
 function initializeMessageHandler() {
@@ -124,6 +137,71 @@ function initializeMessageHandler() {
   
   console.log('Message handler initialized successfully');
 }
+
+// Track content script readiness per tab
+const contentScriptReady = new Map();
+
+// Initialize commands listener for manifest-defined keyboard shortcuts
+function initializeCommandsListener() {
+  console.log('Initializing commands listener');
+  
+  chrome.commands.onCommand.addListener(async (command) => {
+    console.log('Command received:', command);
+    
+    const action = COMMAND_ACTION_MAP[command];
+    if (!action) {
+      console.warn('Unknown command:', command);
+      return;
+    }
+    
+    // Get the active tab and send message to content script
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (tab && tab.id && tab.url && tab.url.includes('leetcode.com')) {
+        console.log('Sending action to content script:', action);
+        
+        // Check if content script is ready
+        if (contentScriptReady.get(tab.id)) {
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'trigger-shortcut',
+            action: action
+          }).catch(error => {
+            console.warn('Content script not responding:', error.message);
+            contentScriptReady.delete(tab.id);
+          });
+        } else {
+          console.log('Content script not ready on tab', tab.id);
+          // Try to send anyway - it might be in the process of loading
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'trigger-shortcut',
+            action: action
+          }).catch(error => {
+            console.warn('Failed to send message to content script:', error.message);
+          });
+        }
+      } else {
+        console.log('Not on LeetCode tab, ignoring command');
+      }
+    } catch (error) {
+      console.error('Error handling command:', error);
+    }
+  });
+  
+  console.log('Commands listener initialized');
+}
+
+// Listen for content script ready messages
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'contentScriptReady') {
+    console.log('Content script ready on tab:', sender.tab?.id);
+    if (sender.tab?.id) {
+      contentScriptReady.set(sender.tab.id, true);
+    }
+    return false;
+  }
+  return undefined;
+});
 
 // Handle get configuration request
 async function handleGetConfiguration(request, sendResponse) {
@@ -230,6 +308,7 @@ async function handleTestAPIConnection(request, sendResponse) {
 async function handleAIRequest(request, sendResponse) {
   try {
     const storageManager = container.get('storageManager');
+    const promptEngineer = container.get('promptEngineer') || new PromptEngineer();
     
     const config = await storageManager.retrieveConfiguration();
     if (!config) {
@@ -238,10 +317,44 @@ async function handleAIRequest(request, sendResponse) {
 
     await incrementRequestCount();
     
+    // Create AI client and generate prompt
+    const aiClient = new AIProviderClient(config);
+    let prompt;
+    
+    switch (request.type) {
+      case 'completion':
+        prompt = promptEngineer.createCompletionPrompt(request);
+        break;
+      case 'explanation':
+        prompt = promptEngineer.createExplanationPrompt(request);
+        break;
+      case 'optimization':
+        prompt = promptEngineer.createOptimizationPrompt(request);
+        break;
+      case 'hint':
+        prompt = promptEngineer.createProgressiveHintPrompt(
+          request,
+          request.hintLevel || 1,
+          request.hintContext
+        );
+        break;
+      default:
+        throw new Error(`Unknown AI request type: ${request.type}`);
+    }
+    
+    // Make the actual API request
+    const response = await aiClient.makeRequest(prompt, request.type);
+    
+    // Filter and sanitize the response
+    const filteredResponse = promptEngineer.filterResponse(response.content, request.type);
+    const sanitizedContent = promptEngineer.sanitizeContent(filteredResponse.content);
+    
+    await incrementTokenCount(response.usage?.total_tokens || 100);
+    
     sendResponse({
-      [request.type === 'completion' ? 'suggestion' : request.type]: 'AI functionality is being initialized. Please try again in a moment.',
+      [request.type === 'completion' ? 'suggestion' : request.type]: sanitizedContent,
       type: request.type,
-      provider: config.provider,
+      provider: response.provider,
       requestId: request.requestId
     });
     

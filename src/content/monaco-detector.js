@@ -1,11 +1,15 @@
 // LeetPilot Monaco Editor Detector
 // Detects and validates Monaco Editor instances on LeetCode
 
-/**
- * Monaco Editor Detector
- * Detects and validates Monaco Editor instances on LeetCode
- */
-export class MonacoDetector {
+// IIFE-based module pattern for Chrome content scripts
+(function() {
+  'use strict';
+
+  /**
+   * Monaco Editor Detector
+   * Detects and validates Monaco Editor instances on LeetCode
+   */
+  class MonacoDetector {
   constructor() {
     this.detectedEditor = null;
     this.detectionCallbacks = [];
@@ -362,12 +366,16 @@ export class MonacoDetector {
     return observer;
   }
 
-  /**
-   * Cleanup resources
-   */
-  cleanup() {
-    this.detectedEditor = null;
-    this.detectionCallbacks = [];
-    this.isDetecting = false;
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+      this.detectedEditor = null;
+      this.detectionCallbacks = [];
+      this.isDetecting = false;
+    }
   }
-}
+
+  // Expose to global scope for content script compatibility
+  window.__LeetPilotMonacoDetector = MonacoDetector;
+})();

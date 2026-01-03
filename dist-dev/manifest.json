@@ -30,8 +30,7 @@
       "js": [
         "src/content.js"
       ],
-      "run_at": "document_end",
-      "type": "module"
+      "run_at": "document_end"
     }
   ],
   "action": {
@@ -53,8 +52,9 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "content/*",
-        "src/*"
+        "src/content/*",
+        "src/core/*",
+        "src/ui/*"
       ],
       "matches": [
         "https://leetcode.com/*"
@@ -71,6 +71,32 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https:; default-src 'self'"
+  },
+  "commands": {
+    "trigger-completion": {
+      "suggested_key": {
+        "default": "Ctrl+Space"
+      },
+      "description": "Trigger code completion"
+    },
+    "trigger-explanation": {
+      "suggested_key": {
+        "default": "Alt+E"
+      },
+      "description": "Get code explanation"
+    },
+    "trigger-optimization": {
+      "suggested_key": {
+        "default": "Alt+O"
+      },
+      "description": "Get optimization suggestions"
+    },
+    "trigger-hint": {
+      "suggested_key": {
+        "default": "Alt+H"
+      },
+      "description": "Get progressive hint"
+    }
   },
   "minimum_chrome_version": "88",
   "version_name": "1.0.0-dev"

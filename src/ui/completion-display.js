@@ -4,12 +4,20 @@
 /**
  * Completion Display Manager
  * Handles the display and interaction of code completion suggestions
+ * Features: Scrollable, Draggable, Resizeable, Modern UI
  */
 export class CompletionDisplay {
   constructor() {
     this.activeCompletion = null;
     this.keyHandler = null;
     this.clickHandler = null;
+    this.dragHandler = null;
+    this.isDragging = false;
+    this.dragOffset = { x: 0, y: 0 };
+    this.resizeHandler = null;
+    this.isResizing = false;
+    this.resizeStartPos = { x: 0, y: 0 };
+    this.completionStartSize = { width: 0, height: 0 };
   }
 
   /**
@@ -47,6 +55,10 @@ export class CompletionDisplay {
     const completionContainer = document.createElement('div');
     completionContainer.className = 'leetpilot-completion leetpilot-display';
 
+    // Create drag handle
+    const dragHandle = this.createDragHandle();
+    completionContainer.appendChild(dragHandle);
+
     // Create the main completion content
     const completionContent = document.createElement('div');
     completionContent.className = 'leetpilot-completion-content';
@@ -77,7 +89,33 @@ export class CompletionDisplay {
     completionContent.appendChild(actionButtons);
     completionContainer.appendChild(completionContent);
 
+    // Create resize handle
+    const resizeHandle = this.createResizeHandle();
+    completionContainer.appendChild(resizeHandle);
+
     return completionContainer;
+  }
+
+  /**
+   * Create drag handle for the completion
+   */
+  createDragHandle() {
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'leetpilot-drag-handle';
+    dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>';
+    dragHandle.title = 'Drag to move';
+    return dragHandle;
+  }
+
+  /**
+   * Create resize handle for the completion
+   */
+  createResizeHandle() {
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'leetpilot-resize-handle';
+    resizeHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M14 10V14H10V10H14ZM8 14V10H4V14H8ZM10 8V4H14V8H10ZM4 8V4H0V8H4Z"/></svg>';
+    resizeHandle.title = 'Drag to resize';
+    return resizeHandle;
   }
 
   /**
@@ -158,8 +196,16 @@ export class CompletionDisplay {
    * Set up completion interaction handlers
    */
   setupCompletionInteractions(completionElement, suggestion, monacoEditor) {
+    const dragHandle = completionElement.querySelector('.leetpilot-drag-handle');
+    const resizeHandle = completionElement.querySelector('.leetpilot-resize-handle');
     const acceptButton = completionElement.querySelector('.leetpilot-btn-accept');
     const rejectButton = completionElement.querySelector('.leetpilot-btn-reject');
+
+    // Drag functionality
+    this.setupDragging(completionElement, dragHandle);
+
+    // Resize functionality
+    this.setupResizing(completionElement, resizeHandle);
 
     // Accept button handler
     if (acceptButton) {
@@ -201,6 +247,99 @@ export class CompletionDisplay {
     setTimeout(() => {
       document.addEventListener('click', this.clickHandler);
     }, 100);
+  }
+
+  /**
+   * Setup dragging functionality
+   */
+  setupDragging(completionElement, dragHandle) {
+    dragHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      this.isDragging = true;
+      
+      const rect = completionElement.getBoundingClientRect();
+      this.dragOffset = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+
+      completionElement.style.zIndex = '10000';
+      dragHandle.style.cursor = 'grabbing';
+
+      this.dragHandler = (e) => {
+        if (!this.isDragging) return;
+        
+        let newX = e.clientX - this.dragOffset.x;
+        let newY = e.clientY - this.dragOffset.y;
+
+        // Keep within viewport
+        const maxX = window.innerWidth - rect.width;
+        const maxY = window.innerHeight - rect.height;
+        newX = Math.max(0, Math.min(newX, maxX));
+        newY = Math.max(0, Math.min(newY, maxY));
+
+        completionElement.style.left = newX + 'px';
+        completionElement.style.top = newY + 'px';
+        completionElement.style.right = 'auto';
+      };
+
+      this.dragHandler = this.dragHandler.bind(this);
+      document.addEventListener('mousemove', this.dragHandler);
+
+      const stopDrag = () => {
+        this.isDragging = false;
+        dragHandle.style.cursor = 'grab';
+        document.removeEventListener('mousemove', this.dragHandler);
+        document.removeEventListener('mouseup', stopDrag);
+      };
+
+      document.addEventListener('mouseup', stopDrag);
+    });
+  }
+
+  /**
+   * Setup resizing functionality
+   */
+  setupResizing(completionElement, resizeHandle) {
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.isResizing = true;
+
+      this.resizeStartPos = { x: e.clientX, y: e.clientY };
+      this.completionStartSize = {
+        width: completionElement.offsetWidth,
+        height: completionElement.offsetHeight
+      };
+
+      completionElement.style.zIndex = '10000';
+      resizeHandle.style.cursor = 'se-resize';
+
+      this.resizeHandler = (e) => {
+        if (!this.isResizing) return;
+
+        const deltaX = e.clientX - this.resizeStartPos.x;
+        const deltaY = e.clientY - this.resizeStartPos.y;
+
+        const newWidth = Math.max(250, this.completionStartSize.width + deltaX);
+        const newHeight = Math.max(150, this.completionStartSize.height + deltaY);
+
+        completionElement.style.width = newWidth + 'px';
+        completionElement.style.height = newHeight + 'px';
+      };
+
+      this.resizeHandler = this.resizeHandler.bind(this);
+      document.addEventListener('mousemove', this.resizeHandler);
+
+      const stopResize = () => {
+        this.isResizing = false;
+        resizeHandle.style.cursor = 'se-resize';
+        document.removeEventListener('mousemove', this.resizeHandler);
+        document.removeEventListener('mouseup', stopResize);
+      };
+
+      document.addEventListener('mouseup', stopResize);
+    });
   }
 
   /**
@@ -306,6 +445,16 @@ export class CompletionDisplay {
       this.clickHandler = null;
     }
 
+    if (this.dragHandler) {
+      document.removeEventListener('mousemove', this.dragHandler);
+      this.dragHandler = null;
+    }
+
+    if (this.resizeHandler) {
+      document.removeEventListener('mousemove', this.resizeHandler);
+      this.resizeHandler = null;
+    }
+
     // Remove completion elements
     const existingCompletions = document.querySelectorAll('.leetpilot-completion');
     existingCompletions.forEach(element => {
@@ -313,6 +462,8 @@ export class CompletionDisplay {
     });
 
     this.activeCompletion = null;
+    this.isDragging = false;
+    this.isResizing = false;
   }
 
   /**

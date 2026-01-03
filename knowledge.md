@@ -190,6 +190,12 @@ src/
 4. **Build fails**: Delete `node_modules`, run `npm install` again, then `npm run build:dev`
 
 ## Recent Changes Log
+- **Jan 3, 2026**: 
+  - Fixed LeetCode options (Auto toggles) not working
+  - Settings now properly stored in chrome.storage.local
+  - Added getSettings endpoint to retrieve all settings
+  - Background service now checks feature flags before processing (for future auto-trigger support)
+  - Popup now loads settings from chrome.storage instead of just localStorage
 - **Jan 2, 2026**: 
   - Fixed keyboard shortcuts (removed parameter from initialize call)
   - Added import/export config feature

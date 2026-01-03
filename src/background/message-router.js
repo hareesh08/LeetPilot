@@ -46,6 +46,7 @@ export class MessageRouter {
     this.addRoute('saveConfiguration', 'config');
     this.addRoute('testAPIConnection', 'config');
     this.addRoute('updateSetting', 'config');
+    this.addRoute('getSettings', 'config');
     
     this.addRoute('resetHints', 'hints');
     

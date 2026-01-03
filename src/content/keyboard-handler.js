@@ -1,11 +1,15 @@
 // LeetPilot Keyboard Handler
 // Manages keyboard shortcuts and hotkeys for LeetPilot functionality
 
-/**
- * Keyboard Handler
- * Manages keyboard shortcuts and hotkeys for LeetPilot functionality
- */
-export class KeyboardHandler {
+// IIFE-based module pattern for Chrome content scripts
+(function() {
+  'use strict';
+
+  /**
+   * Keyboard Handler
+   * Manages keyboard shortcuts and hotkeys for LeetPilot functionality
+   */
+  class KeyboardHandler {
   constructor() {
     this.shortcuts = new Map();
     this.isEnabled = true;
@@ -451,18 +455,22 @@ export class KeyboardHandler {
     };
   }
 
-  /**
-   * Cleanup resources
-   */
-  cleanup() {
-    if (this.eventListener) {
-      document.removeEventListener('keydown', this.eventListener, true);
-      this.eventListener = null;
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+      if (this.eventListener) {
+        document.removeEventListener('keydown', this.eventListener, true);
+        this.eventListener = null;
+      }
+      
+      this.shortcuts.clear();
+      this.isEnabled = false;
+      
+      console.log('Keyboard handler cleaned up');
     }
-    
-    this.shortcuts.clear();
-    this.isEnabled = false;
-    
-    console.log('Keyboard handler cleaned up');
   }
-}
+
+  // Expose to global scope for content script compatibility
+  window.__LeetPilotKeyboardHandler = KeyboardHandler;
+})();

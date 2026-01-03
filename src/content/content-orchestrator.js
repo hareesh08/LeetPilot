@@ -1,11 +1,16 @@
 // LeetPilot Content Script Orchestrator
 // Main coordinator for content script functionality
 
-import { MonacoDetector } from './monaco-detector.js';
-import { EditorIntegration } from './editor-integration.js';
-import { KeyboardHandler } from './keyboard-handler.js';
+// IIFE-based module pattern for Chrome content scripts
+(function() {
+  'use strict';
 
-export class ContentOrchestrator {
+  // Get dependencies from global scope (loaded via dynamic import)
+  const MonacoDetector = window.__LeetPilotMonacoDetector;
+  const EditorIntegration = window.__LeetPilotEditorIntegration;
+  const KeyboardHandler = window.__LeetPilotKeyboardHandler;
+
+  class ContentOrchestrator {
   constructor() {
     this.monacoDetector = new MonacoDetector();
     this.editorIntegration = null;
@@ -27,22 +32,38 @@ export class ContentOrchestrator {
     }
     
     try {
+      // Set up listeners immediately (before Monaco detection)
+      this.setupShortcutListener();
+      this.setupCommandListener();
+      
       const editor = await this.monacoDetector.detectMonacoEditor();
       
       if (editor) {
         this.editorIntegration = new EditorIntegration(editor);
         await this.editorIntegration.initialize();
         
-        this.setupShortcutListener();
-        
         this.isInitialized = true;
         console.log('LeetPilot content orchestrator initialization complete');
       } else {
-        console.warn('Monaco Editor not found');
+        console.warn('Monaco Editor not found - keyboard shortcuts still active');
+        // Still mark as partially initialized so shortcuts work
+        this.isInitialized = true;
       }
     } catch (error) {
       console.error('Error initializing content orchestrator:', error);
     }
+  }
+
+  setupCommandListener() {
+    // Listen for commands from background script
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'trigger-shortcut') {
+        console.log('Command triggered from background:', message.action);
+        this.handleShortcutAction(message.action);
+        sendResponse({ success: true });
+      }
+      return true; // Keep message channel open for async response
+    });
   }
 
   setupShortcutListener() {
@@ -59,15 +80,24 @@ export class ContentOrchestrator {
   }
 
   async handleShortcutAction(action) {
-    if (!this.editorIntegration) {
-      console.warn('Editor integration not ready');
-      this.showToast('Editor not ready', 'error');
-      return;
-    }
-
-    const currentCode = this.editorIntegration.getCurrentCode();
     const problemTitle = this.getProblemTitle();
     const language = this.getLanguage();
+    let currentCode = '';
+
+    // Try to get code from editor if available
+    if (this.editorIntegration) {
+      currentCode = this.editorIntegration.getCurrentCode();
+    } else {
+      // Fallback: try to get code directly from the page
+      currentCode = this.getCodeFromPage();
+    }
+
+    // If still no code, warn but continue
+    if (!currentCode) {
+      console.warn('Could not retrieve code from editor');
+      this.showToast('Could not retrieve code. Please make sure the editor is loaded.', 'warning');
+      // Continue anyway - the user might still want to proceed
+    }
 
     console.log(`Processing ${action} request...`);
     
@@ -124,8 +154,52 @@ export class ContentOrchestrator {
     return 'javascript';
   }
 
+  /**
+   * Fallback method to get code directly from the page
+   */
+  getCodeFromPage() {
+    // Try Monaco editor first
+    const monacoEditor = document.querySelector('.monaco-editor');
+    if (monacoEditor) {
+      // Try to get code from Monaco's model
+      const monaco = window.monaco;
+      if (monaco) {
+        try {
+          const models = monaco.editor.getModels();
+          if (models && models.length > 0) {
+            return models[0].getValue();
+          }
+        } catch (e) {
+          console.warn('Failed to get code from Monaco models:', e);
+        }
+      }
+    }
+    
+    // Try LeetCode's code editor iframe or element
+    const codeElement = document.querySelector('[class*="code-editor"]') ||
+                       document.querySelector('#editor') ||
+                       document.querySelector('textarea[name*="code"]');
+    
+    if (codeElement) {
+      return codeElement.value || codeElement.textContent || '';
+    }
+    
+    // Try to find pre/code elements
+    const preElement = document.querySelector('pre[class*="code"]');
+    if (preElement) {
+      return preElement.textContent || '';
+    }
+    
+    // Return empty string if nothing found
+    console.warn('Could not find code element on page');
+    return '';
+  }
+
   displayResponse(action, response) {
     console.log('Displaying response for:', action, response);
+    
+    // Inject popup styles if not already present
+    this.injectPopupStyles();
     
     const content = response.suggestion || response.explanation || response.optimization || response.hint || 'No response';
     
@@ -135,36 +209,135 @@ export class ContentOrchestrator {
     }
 
     const display = document.createElement('div');
-    display.className = 'leetpilot-response';
-    display.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      max-width: 500px;
-      background: white;
-      border: 2px solid #6366f1;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 10000;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
-    
+    display.className = 'leetpilot-response leetpilot-popup';
     display.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h3 style="margin: 0; color: #6366f1; font-size: 16px;">${action.charAt(0).toUpperCase() + action.slice(1)}</h3>
-        <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">&times;</button>
+      <div class="leetpilot-drag-handle">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/>
+          <circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
+        </svg>
       </div>
-      <div style="color: #333; font-size: 14px; line-height: 1.6; white-space: pre-wrap;">${content}</div>
+      <div class="leetpilot-popup-header">
+        <h3 class="leetpilot-popup-title">${action.charAt(0).toUpperCase() + action.slice(1)}</h3>
+        <button class="leetpilot-popup-close">×</button>
+      </div>
+      <div class="leetpilot-popup-content" style="color: var(--leetpilot-text); font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
+        ${content}
+      </div>
+      <div class="leetpilot-resize-handle">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <path d="M14 10V14H10V10H14ZM8 14V10H4V14H8ZM10 8V4H14V8H10ZM4 8V4H0V8H4Z"/>
+        </svg>
+      </div>
     `;
     
     document.body.appendChild(display);
+    
+    // Setup close button
+    const closeBtn = display.querySelector('.leetpilot-popup-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => display.remove());
+    }
+    
+    // Setup drag functionality
+    this.setupDragging(display);
+    
+    // Setup resize functionality
+    this.setupResizing(display);
     
     setTimeout(() => {
       if (display.parentElement) {
         display.remove();
       }
     }, 30000);
+  }
+
+  /**
+   * Inject popup styles into the page
+   */
+  injectPopupStyles() {
+    if (document.querySelector('#leetpilot-popup-styles')) return;
+    
+    const link = document.createElement('link');
+    link.id = 'leetpilot-popup-styles';
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('src/ui/popup-styles.css');
+    document.head.appendChild(link);
+  }
+
+  /**
+   * Setup dragging for popup
+   */
+  setupDragging(popup) {
+    const dragHandle = popup.querySelector('.leetpilot-drag-handle');
+    if (!dragHandle) return;
+    
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    
+    dragHandle.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      const rect = popup.getBoundingClientRect();
+      dragOffset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      popup.style.zIndex = '10000';
+      
+      const onMouseMove = (e) => {
+        if (!isDragging) return;
+        const x = e.clientX - dragOffset.x;
+        const y = e.clientY - dragOffset.y;
+        popup.style.left = x + 'px';
+        popup.style.top = y + 'px';
+        popup.style.right = 'auto';
+        popup.style.transform = 'none';
+      };
+      
+      const onMouseUp = () => {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  /**
+   * Setup resizing for popup
+   */
+  setupResizing(popup) {
+    const resizeHandle = popup.querySelector('.leetpilot-resize-handle');
+    if (!resizeHandle) return;
+    
+    let isResizing = false;
+    let startPos = { x: 0, y: 0 };
+    let startSize = { width: 0, height: 0 };
+    
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing = true;
+      startPos = { x: e.clientX, y: e.clientY };
+      startSize = { width: popup.offsetWidth, height: popup.offsetHeight };
+      popup.style.zIndex = '10000';
+      
+      const onMouseMove = (e) => {
+        if (!isResizing) return;
+        const deltaX = e.clientX - startPos.x;
+        const deltaY = e.clientY - startPos.y;
+        popup.style.width = Math.max(280, startSize.width + deltaX) + 'px';
+        popup.style.height = Math.max(200, startSize.height + deltaY) + 'px';
+      };
+      
+      const onMouseUp = () => {
+        isResizing = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      };
+      
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
   }
 
   showToast(message, type = 'info') {
@@ -180,11 +353,12 @@ export class ContentOrchestrator {
       info: { bg: '#3b82f6', border: '#2563eb' },
       loading: { bg: '#f59e0b', border: '#d97706' },
       success: { bg: '#10b981', border: '#059669' },
-      error: { bg: '#ef4444', border: '#dc2626' }
+      error: { bg: '#ef4444', border: '#dc2626' },
+      warning: { bg: '#f59e0b', border: '#d97706' }
     };
     
     const color = colors[type] || colors.info;
-    const icon = type === 'loading' ? '⏳' : type === 'success' ? '✓' : type === 'error' ? '✗' : 'ℹ';
+    const icon = type === 'loading' ? '⏳' : type === 'success' ? '✓' : type === 'error' ? '✗' : type === 'warning' ? '⚠' : 'ℹ';
     
     toast.style.cssText = `
       position: fixed;
@@ -252,36 +426,50 @@ export class ContentOrchestrator {
   }
 
   showError(message) {
-    const existingError = document.querySelector('.leetpilot-error');
+    // Inject popup styles if not already present
+    this.injectPopupStyles();
+    
+    const existingError = document.querySelector('.leetpilot-error.leetpilot-popup');
     if (existingError) {
       existingError.remove();
     }
 
     const errorDisplay = document.createElement('div');
-    errorDisplay.className = 'leetpilot-error';
-    errorDisplay.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      max-width: 400px;
-      background: #fef2f2;
-      border: 2px solid #dc2626;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 10000;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
-    
+    errorDisplay.className = 'leetpilot-error leetpilot-popup';
     errorDisplay.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <h3 style="margin: 0; color: #dc2626; font-size: 14px;">Error</h3>
-        <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #dc2626;">&times;</button>
+      <div class="leetpilot-drag-handle">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/>
+          <circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
+        </svg>
       </div>
-      <div style="color: #991b1b; font-size: 13px;">${message}</div>
+      <div class="leetpilot-popup-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+        <h3 class="leetpilot-popup-title">Error</h3>
+        <button class="leetpilot-popup-close">×</button>
+      </div>
+      <div class="leetpilot-popup-content" style="color: var(--leetpilot-text);">
+        <p class="leetpilot-error-message" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 8px; font-size: 14px; margin: 0;">${message}</p>
+      </div>
+      <div class="leetpilot-resize-handle">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <path d="M14 10V14H10V10H14ZM8 14V10H4V14H8ZM10 8V4H14V8H10ZM4 8V4H0V8H4Z"/>
+        </svg>
+      </div>
     `;
     
     document.body.appendChild(errorDisplay);
+    
+    // Setup close button
+    const closeBtn = errorDisplay.querySelector('.leetpilot-popup-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => errorDisplay.remove());
+    }
+    
+    // Setup drag functionality
+    this.setupDragging(errorDisplay);
+    
+    // Setup resize functionality
+    this.setupResizing(errorDisplay);
     
     setTimeout(() => {
       if (errorDisplay.parentElement) {
@@ -304,18 +492,22 @@ export class ContentOrchestrator {
     return this.isInitialized && this.editorIntegration;
   }
 
-  /**
-   * Cleanup resources
-   */
-  cleanup() {
-    if (this.editorIntegration) {
-      this.editorIntegration.cleanup();
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+      if (this.editorIntegration) {
+        this.editorIntegration.cleanup();
+      }
+      
+      if (this.keyboardHandler) {
+        this.keyboardHandler.cleanup();
+      }
+      
+      this.isInitialized = false;
     }
-    
-    if (this.keyboardHandler) {
-      this.keyboardHandler.cleanup();
-    }
-    
-    this.isInitialized = false;
   }
-}
+
+  // Expose to global scope for content script compatibility
+  window.__LeetPilotContentOrchestrator = ContentOrchestrator;
+})();

@@ -1,11 +1,15 @@
 // LeetPilot Editor Integration
 // Handles integration with Monaco Editor for code manipulation and event handling
 
-/**
- * Editor Integration Manager
- * Handles integration with Monaco Editor for code manipulation and event handling
- */
-export class EditorIntegration {
+// IIFE-based module pattern for Chrome content scripts
+(function() {
+  'use strict';
+
+  /**
+   * Editor Integration Manager
+   * Handles integration with Monaco Editor for code manipulation and event handling
+   */
+  class EditorIntegration {
   constructor(monacoEditor) {
     this.monacoEditor = monacoEditor;
     this.observers = [];
@@ -562,31 +566,35 @@ export class EditorIntegration {
     };
   }
 
-  /**
-   * Cleanup resources
-   */
-  cleanup() {
-    // Clear timeouts
-    if (this._contentChangeTimeout) {
-      clearTimeout(this._contentChangeTimeout);
+    /**
+     * Cleanup resources
+     */
+    cleanup() {
+      // Clear timeouts
+      if (this._contentChangeTimeout) {
+        clearTimeout(this._contentChangeTimeout);
+      }
+
+      // Disconnect observers
+      this.observers.forEach(observer => observer.disconnect());
+      this.observers = [];
+
+      // Remove event listeners
+      this.eventListeners.forEach(({ element, event, handler }) => {
+        element.removeEventListener(event, handler);
+      });
+      this.eventListeners = [];
+
+      // Clear callbacks
+      this.changeCallbacks = [];
+      this.focusCallbacks = [];
+      this.cursorCallbacks = [];
+
+      this.isInitialized = false;
+      console.log('Editor integration cleaned up');
     }
-
-    // Disconnect observers
-    this.observers.forEach(observer => observer.disconnect());
-    this.observers = [];
-
-    // Remove event listeners
-    this.eventListeners.forEach(({ element, event, handler }) => {
-      element.removeEventListener(event, handler);
-    });
-    this.eventListeners = [];
-
-    // Clear callbacks
-    this.changeCallbacks = [];
-    this.focusCallbacks = [];
-    this.cursorCallbacks = [];
-
-    this.isInitialized = false;
-    console.log('Editor integration cleaned up');
   }
-}
+
+  // Expose to global scope for content script compatibility
+  window.__LeetPilotEditorIntegration = EditorIntegration;
+})();

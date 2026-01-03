@@ -198,7 +198,7 @@ export class AIProviderClient {
   }
 
   /**
-   * Custom provider API client (OpenAI-compatible)
+   * Custom provider API client (OpenAI-compatible and alternative formats)
    */
   async callCustomProvider(prompt, requestType) {
     const url = this.providerInfo.apiUrl;
@@ -224,15 +224,61 @@ export class AIProviderClient {
       body: JSON.stringify(requestBody)
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
-    }
-
     const data = await response.json();
     
+    // Handle non-standard response formats (e.g., {status, msg, body})
+    if (data.status !== undefined) {
+      // Check for error status codes
+      if (data.status !== '200' && data.status !== 200) {
+        const errorMsg = data.msg || `API returned status: ${data.status}`;
+        throw new Error(errorMsg);
+      }
+      
+      // Extract content from body field
+      if (data.body) {
+        const content = data.body.choices?.[0]?.message?.content || 
+                       data.body.content || 
+                       data.body.text || 
+                       '';
+        
+        if (!content || content.trim() === '') {
+          throw new Error('Custom provider returned empty content in body field');
+        }
+        
+        return {
+          content: content,
+          provider: 'custom',
+          model: this.config.model,
+          usage: data.body.usage
+        };
+      }
+    }
+    
+    // Handle standard HTTP error responses
+    if (!response.ok) {
+      const errorMsg = data.error?.message || data.msg || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMsg);
+    }
+
+    // Handle OpenAI-compatible format
+    console.log('Custom provider API response:', {
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      hasMessage: !!data.choices?.[0]?.message,
+      hasContent: !!data.choices?.[0]?.message?.content,
+      contentLength: data.choices?.[0]?.message?.content?.length,
+      rawDataKeys: Object.keys(data)
+    });
+    
+    const content = data.choices?.[0]?.message?.content || '';
+    
+    if (!content || content.trim() === '') {
+      console.error('Custom provider returned empty content. Full response:', JSON.stringify(data, null, 2));
+      throw new Error('Custom provider returned empty content. Response structure: ' + JSON.stringify(Object.keys(data)));
+    }
+    
     return {
-      content: data.choices?.[0]?.message?.content || '',
+      content: content,
       provider: 'custom',
       model: this.config.model,
       usage: data.usage

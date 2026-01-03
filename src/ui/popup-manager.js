@@ -279,7 +279,9 @@ export class PopupManager {
           message: message
         });
 
-        console.log('Chat response:', response);
+        console.log('Chat response received:', response);
+        console.log('Response has reply:', !!response?.reply);
+        console.log('Response reply value:', response?.reply);
 
         if (response?.error) {
           const errorMessage = document.createElement('div');
@@ -287,11 +289,19 @@ export class PopupManager {
           errorMessage.textContent = 'Error: ' + response.error;
           chatMessages.appendChild(errorMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
-        } else {
+        } else if (response?.reply) {
           const assistantMessage = document.createElement('div');
           assistantMessage.className = 'chat-message assistant';
-          assistantMessage.textContent = response?.reply || 'Sorry, I could not process your request.';
+          assistantMessage.textContent = response.reply;
           chatMessages.appendChild(assistantMessage);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+          // Log the full response to debug
+          console.error('Unexpected response format:', JSON.stringify(response));
+          const errorMessage = document.createElement('div');
+          errorMessage.className = 'chat-message assistant';
+          errorMessage.textContent = 'Sorry, I could not process your request. (No reply in response)';
+          chatMessages.appendChild(errorMessage);
           chatMessages.scrollTop = chatMessages.scrollHeight;
         }
       } catch (error) {
@@ -331,20 +341,29 @@ export class PopupManager {
       toggleSound: 'sound'
     };
 
+    // Load settings from background
+    this.loadSettings(toggles);
+
     Object.entries(toggles).forEach(([toggleId, settingKey]) => {
       const toggle = document.getElementById(toggleId);
       if (toggle) {
-        const savedValue = localStorage.getItem(settingKey);
-        if (savedValue !== null) {
-          toggle.checked = savedValue === 'true';
-        }
-
         toggle.addEventListener('change', (e) => {
-          localStorage.setItem(settingKey, e.target.checked);
+          const value = e.target.checked;
+          
+          // Save to localStorage for quick access
+          localStorage.setItem(settingKey, value);
+          
+          // Save to chrome.storage via background script
           this.sendMessageToBackground({
             type: 'updateSetting',
             setting: settingKey,
-            value: e.target.checked
+            value: value
+          }).then(response => {
+            if (response?.success) {
+              console.log(`Setting ${settingKey} updated successfully`);
+            }
+          }).catch(error => {
+            console.error(`Failed to update setting ${settingKey}:`, error);
           });
         });
       }
@@ -379,6 +398,56 @@ export class PopupManager {
         if (file) {
           this.importConfiguration(file);
           importFileInput.value = '';
+        }
+      });
+    }
+  }
+
+  async loadSettings(toggles) {
+    try {
+      const response = await this.sendMessageToBackground({ type: 'getSettings' });
+      
+      if (response?.success && response?.settings) {
+        const settings = response.settings;
+        
+        Object.entries(toggles).forEach(([toggleId, settingKey]) => {
+          const toggle = document.getElementById(toggleId);
+          if (toggle) {
+            // Use chrome.storage value if available, otherwise fall back to localStorage
+            if (settings[settingKey] !== undefined) {
+              toggle.checked = settings[settingKey];
+              localStorage.setItem(settingKey, settings[settingKey]);
+            } else {
+              // Fall back to localStorage or default
+              const savedValue = localStorage.getItem(settingKey);
+              if (savedValue !== null) {
+                toggle.checked = savedValue === 'true';
+              }
+            }
+          }
+        });
+      } else {
+        // Fall back to localStorage
+        Object.entries(toggles).forEach(([toggleId, settingKey]) => {
+          const toggle = document.getElementById(toggleId);
+          if (toggle) {
+            const savedValue = localStorage.getItem(settingKey);
+            if (savedValue !== null) {
+              toggle.checked = savedValue === 'true';
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      // Fall back to localStorage
+      Object.entries(toggles).forEach(([toggleId, settingKey]) => {
+        const toggle = document.getElementById(toggleId);
+        if (toggle) {
+          const savedValue = localStorage.getItem(settingKey);
+          if (savedValue !== null) {
+            toggle.checked = savedValue === 'true';
+          }
         }
       });
     }
@@ -883,25 +952,46 @@ export class PopupManager {
   }
 
   /**
-   * Export configuration to JSON file
+   * Export configuration to JSON file including theme settings
    */
   async exportConfiguration() {
     try {
       const response = await this.sendMessageToBackground({ type: 'getConfiguration' });
       
       if (!response?.success || !response?.config) {
-        this.showStatus('No configuration found to export', 'error');
+        this.showSettingsStatus('No configuration found to export', 'error');
         return;
       }
 
       const config = response.config;
+      
+      // Get theme settings
+      const isDarkMode = localStorage.getItem('darkMode') === 'true';
+      
+      // Get all toggle settings
+      const settings = await this.sendMessageToBackground({ type: 'getSettings' });
+      
       const exportData = {
+        // API Configuration
         provider: config.provider,
-        apiKey: config.apiKey,
+        apiKey: config.apiKey, // Original API key (not redacted)
         model: config.model,
         maxTokens: config.maxTokens,
         temperature: config.temperature,
         customApiUrl: config.customApiUrl,
+        // Theme Settings
+        theme: {
+          darkMode: isDarkMode
+        },
+        // Feature Toggles
+        features: {
+          autoComplete: localStorage.getItem('autoComplete') === 'true',
+          autoHint: localStorage.getItem('autoHint') === 'true',
+          autoErrorFix: localStorage.getItem('autoErrorFix') === 'true',
+          autoOptimize: localStorage.getItem('autoOptimize') === 'true',
+          notifications: settings?.settings?.notifications ?? true,
+          sound: settings?.settings?.sound ?? false
+        },
         exportedAt: new Date().toISOString(),
         version: '1.0.0'
       };
@@ -916,15 +1006,15 @@ export class PopupManager {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      this.showStatus('Configuration exported successfully!', 'success');
+      this.showSettingsStatus('Configuration exported successfully!', 'success');
     } catch (error) {
       console.error('Export failed:', error);
-      this.showStatus('Failed to export configuration: ' + error.message, 'error');
+      this.showSettingsStatus('Failed to export configuration: ' + error.message, 'error');
     }
   }
 
   /**
-   * Import configuration from JSON file
+   * Import configuration from JSON file including theme settings
    */
   async importConfiguration(file) {
     try {
@@ -932,13 +1022,13 @@ export class PopupManager {
       const importData = JSON.parse(text);
 
       if (!importData.provider || !importData.apiKey) {
-        this.showStatus('Invalid configuration file: missing required fields', 'error');
+        this.showSettingsStatus('Invalid configuration file: missing required fields', 'error');
         return;
       }
 
       const config = {
         provider: importData.provider,
-        apiKey: importData.apiKey,
+        apiKey: importData.apiKey, // Original API key (restored)
         model: importData.model || null,
         maxTokens: importData.maxTokens || 1000,
         temperature: importData.temperature || 0.7,
@@ -951,15 +1041,57 @@ export class PopupManager {
       });
 
       if (response?.success) {
-        this.showStatus('Configuration imported successfully!', 'success');
+        // Import theme settings if present
+        if (importData.theme && importData.theme.darkMode !== undefined) {
+          localStorage.setItem('darkMode', importData.theme.darkMode.toString());
+          const darkModeToggle = document.getElementById('toggleDarkMode');
+          if (darkModeToggle) {
+            darkModeToggle.checked = importData.theme.darkMode;
+          }
+          if (importData.theme.darkMode) {
+            document.body.classList.add('dark');
+          } else {
+            document.body.classList.remove('dark');
+          }
+        }
+
+        // Import feature toggles if present
+        if (importData.features) {
+          const toggleMap = {
+            autoComplete: 'toggleAutoComplete',
+            autoHint: 'toggleAutoHint',
+            autoErrorFix: 'toggleAutoErrorFix',
+            autoOptimize: 'toggleAutoOptimize',
+            notifications: 'toggleNotifications',
+            sound: 'toggleSound'
+          };
+
+          Object.entries(toggleMap).forEach(([featureKey, toggleId]) => {
+            if (importData.features[featureKey] !== undefined) {
+              localStorage.setItem(featureKey, importData.features[featureKey].toString());
+              const toggle = document.getElementById(toggleId);
+              if (toggle) {
+                toggle.checked = importData.features[featureKey];
+              }
+              // Also send to background script
+              this.sendMessageToBackground({
+                type: 'updateSetting',
+                setting: featureKey,
+                value: importData.features[featureKey]
+              }).catch(() => {});
+            }
+          });
+        }
+
+        this.showSettingsStatus('Configuration imported successfully!', 'success');
         await this.loadConfiguration();
         this.updateMainPageStatus();
       } else {
-        this.showStatus('Failed to import configuration: ' + (response?.error || 'Unknown error'), 'error');
+        this.showSettingsStatus('Failed to import configuration: ' + (response?.error || 'Unknown error'), 'error');
       }
     } catch (error) {
       console.error('Import failed:', error);
-      this.showStatus('Failed to import configuration: ' + error.message, 'error');
+      this.showSettingsStatus('Failed to import configuration: ' + error.message, 'error');
     }
   }
 
@@ -968,6 +1100,24 @@ export class PopupManager {
    */
   showStatus(message, type) {
     const statusDiv = document.getElementById('configStatus');
+    if (statusDiv) {
+      statusDiv.textContent = message;
+      statusDiv.className = `status-msg ${type}`;
+      statusDiv.style.display = 'block';
+
+      if (type === 'success') {
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+  }
+
+  /**
+   * Show status message in settings tab
+   */
+  showSettingsStatus(message, type) {
+    const statusDiv = document.getElementById('settingsStatus');
     if (statusDiv) {
       statusDiv.textContent = message;
       statusDiv.className = `status-msg ${type}`;
