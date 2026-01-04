@@ -36,21 +36,27 @@
       this.setupShortcutListener();
       this.setupCommandListener();
       
-      const editor = await this.monacoDetector.detectMonacoEditor();
-      
-      if (editor) {
-        this.editorIntegration = new EditorIntegration(editor);
-        await this.editorIntegration.initialize();
+      try {
+        const editor = await this.monacoDetector.detectMonacoEditor();
         
-        this.isInitialized = true;
-        console.log('LeetPilot content orchestrator initialization complete');
-      } else {
-        console.warn('Monaco Editor not found - keyboard shortcuts still active');
-        // Still mark as partially initialized so shortcuts work
-        this.isInitialized = true;
+        if (editor) {
+          this.editorIntegration = new EditorIntegration(editor);
+          await this.editorIntegration.initialize();
+          console.log('LeetPilot content orchestrator initialization complete with Monaco');
+        } else {
+          console.warn('Monaco Editor not found - using fallback detection');
+          this.setupFallbackEditorDetection();
+        }
+      } catch (detectError) {
+        console.warn('Monaco detection failed, using fallback:', detectError.message);
+        this.setupFallbackEditorDetection();
       }
+      
+      this.isInitialized = true;
     } catch (error) {
       console.error('Error initializing content orchestrator:', error);
+      // Still mark as initialized to allow partial functionality
+      this.isInitialized = true;
     }
   }
 
@@ -155,24 +161,117 @@
   }
 
   /**
+   * Setup fallback editor detection when Monaco detection fails
+   */
+  setupFallbackEditorDetection() {
+    console.log('Setting up fallback editor detection...');
+    
+    // Set up a MutationObserver to detect when editor becomes available
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Check if this node or its children contain editor elements
+            const editorElement = node.querySelector?.('.monaco-editor') ||
+                                  node.querySelector?.('[class*="code-editor"]') ||
+                                  node.querySelector?.('textarea');
+            if (editorElement) {
+              console.log('Fallback detection found editor element');
+              this.tryInitializeEditor(editorElement);
+              break;
+            }
+          }
+        }
+      }
+    });
+    
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    // Also try to detect immediately
+    this.tryFallbackDetection();
+  }
+  
+  /**
+   * Try to detect editor using fallback methods
+   */
+  tryFallbackDetection() {
+    // Try to find any textarea that could be the code editor
+    const textareas = document.querySelectorAll('textarea');
+    for (const textarea of textareas) {
+      // Check if it's a code editor textarea
+      const parent = textarea.parentElement;
+      const parentClasses = parent?.className || '';
+      const id = textarea.id || '';
+      
+      if (parentClasses.includes('editor') ||
+          parentClasses.includes('monaco') ||
+          id.includes('editor') ||
+          id.includes('code')) {
+        this.tryInitializeEditor(textarea);
+        return;
+      }
+    }
+    
+    // Try to find Monaco-related elements
+    const monacoElements = document.querySelectorAll('.monaco-editor, [class*="monaco"]');
+    if (monacoElements.length > 0) {
+      this.tryInitializeEditor(monacoElements[0]);
+    }
+  }
+  
+  /**
+   * Try to initialize editor integration with a detected element
+   */
+  tryInitializeEditor(element) {
+    if (this.editorIntegration) return; // Already initialized
+    
+    try {
+      // Create a simple wrapper for the editor element
+      const mockEditorElement = {
+        querySelector: (sel) => element.querySelector?.(sel) || document.querySelector(sel),
+        closest: (sel) => element.closest?.(sel),
+        classList: element.classList || { contains: () => false },
+        getBoundingClientRect: () => element.getBoundingClientRect?.() || { width: 800, height: 400 },
+        contains: (node) => element.contains?.(node) || false
+      };
+      
+      // Try to use EditorIntegration if available
+      if (EditorIntegration && typeof EditorIntegration === 'function') {
+        this.editorIntegration = new EditorIntegration(mockEditorElement);
+        console.log('Fallback editor integration initialized');
+      }
+    } catch (e) {
+      console.warn('Failed to initialize fallback editor:', e);
+    }
+  }
+
+  /**
    * Fallback method to get code directly from the page
    */
   getCodeFromPage() {
-    // Try Monaco editor first
-    const monacoEditor = document.querySelector('.monaco-editor');
-    if (monacoEditor) {
-      // Try to get code from Monaco's model
-      const monaco = window.monaco;
-      if (monaco) {
-        try {
-          const models = monaco.editor.getModels();
-          if (models && models.length > 0) {
-            return models[0].getValue();
-          }
-        } catch (e) {
-          console.warn('Failed to get code from Monaco models:', e);
+    // Try Monaco's window object first
+    const monaco = window.monaco;
+    if (monaco) {
+      try {
+        const models = monaco.editor.getModels();
+        if (models && models.length > 0) {
+          return models[0].getValue();
         }
+      } catch (e) {
+        console.warn('Failed to get code from Monaco models:', e);
       }
+    }
+    
+    // Try to get code from textarea
+    const textarea = document.querySelector('textarea') ||
+                    document.querySelector('[class*="inputarea"]') ||
+                    document.querySelector('[class*="code-editor"] textarea');
+    
+    if (textarea && textarea.value) {
+      return textarea.value;
     }
     
     // Try LeetCode's code editor iframe or element
@@ -188,6 +287,12 @@
     const preElement = document.querySelector('pre[class*="code"]');
     if (preElement) {
       return preElement.textContent || '';
+    }
+    
+    // Try view-lines (Monaco's code display)
+    const viewLines = document.querySelector('.view-lines');
+    if (viewLines) {
+      return viewLines.textContent || '';
     }
     
     // Return empty string if nothing found
@@ -208,6 +313,9 @@
       existingDisplay.remove();
     }
 
+    // Get action-specific icon and color
+    const actionConfig = this.getActionConfig(action);
+    
     const display = document.createElement('div');
     display.className = 'leetpilot-response leetpilot-popup';
     display.innerHTML = `
@@ -217,8 +325,13 @@
           <circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/>
         </svg>
       </div>
-      <div class="leetpilot-popup-header">
-        <h3 class="leetpilot-popup-title">${action.charAt(0).toUpperCase() + action.slice(1)}</h3>
+      <div class="leetpilot-popup-header" style="background: ${actionConfig.headerBg};">
+        <div style="display: flex; align-items: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; flex-shrink: 0;">
+            ${actionConfig.icon}
+          </svg>
+          <h3 class="leetpilot-popup-title">${actionConfig.title}</h3>
+        </div>
         <button class="leetpilot-popup-close">×</button>
       </div>
       <div class="leetpilot-popup-content" style="color: var(--leetpilot-text); font-size: 14px; line-height: 1.6; white-space: pre-wrap;">
@@ -250,6 +363,45 @@
         display.remove();
       }
     }, 30000);
+  }
+
+  /**
+   * Get action-specific configuration (icon, title, colors)
+   */
+  getActionConfig(action) {
+    const configs = {
+      hint: {
+        icon: '<path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2v1"/><path d="M12 7a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v3"/>',
+        title: 'Hint',
+        headerBg: 'linear-gradient(135deg, #0f4c9e 0%, #0a3b7d 100%)'
+      },
+      explanation: {
+        icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+        title: 'Explanation',
+        headerBg: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)'
+      },
+      completion: {
+        icon: '<polyline points="20 6 9 17 4 12"/>',
+        title: 'Completion',
+        headerBg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+      },
+      optimisation: {
+        icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>',
+        title: 'Optimization',
+        headerBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+      },
+      optimize: {
+        icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>',
+        title: 'Optimization',
+        headerBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+      }
+    };
+    
+    return configs[action] || {
+      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+      title: action.charAt(0).toUpperCase() + action.slice(1),
+      headerBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+    };
   }
 
   /**
@@ -444,6 +596,7 @@
         </svg>
       </div>
       <div class="leetpilot-popup-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+        <img src="${chrome.runtime.getURL('icons/logo-name-128.png')}" alt="LeetPilot Logo" style="height: 24px; width: auto; object-fit: contain; margin-right: 12px;">
         <h3 class="leetpilot-popup-title">Error</h3>
         <button class="leetpilot-popup-close">×</button>
       </div>

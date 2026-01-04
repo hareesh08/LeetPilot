@@ -58,12 +58,13 @@
       "resources": [
         "src/content/*",
         "src/core/*",
-        "src/ui/*"
+        "src/ui/*",
+        "icons/*"
       ],
       "matches": ["https://leetcode.com/*"]
     },
     {
-      "resources": ["build-info.json"],
+      "resources": ["build-info.json", "icons/*"],
       "matches": ["<all_urls>"]
     }
   ],

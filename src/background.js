@@ -97,6 +97,10 @@ function initializeMessageHandler() {
           handleUpdateSetting(request, sendResponse);
           return true;
         
+        case 'getSettings':
+          handleGetSettings(request, sendResponse);
+          return true;
+        
         case 'chatMessage':
           handleChatMessage(request, sendResponse);
           return true;
@@ -116,7 +120,15 @@ function initializeMessageHandler() {
             requestId: request.requestId
           });
           return false;
-          
+
+        case 'contentScriptReady':
+          console.log('Content script ready on tab:', sender.tab?.id);
+          if (sender.tab?.id) {
+            contentScriptReady.set(sender.tab.id, true);
+          }
+          sendResponse({ status: 'ok' });
+          return false;
+
         default:
           console.warn('Unknown message type:', request.type);
           sendResponse({
@@ -191,17 +203,7 @@ function initializeCommandsListener() {
   console.log('Commands listener initialized');
 }
 
-// Listen for content script ready messages
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'contentScriptReady') {
-    console.log('Content script ready on tab:', sender.tab?.id);
-    if (sender.tab?.id) {
-      contentScriptReady.set(sender.tab.id, true);
-    }
-    return false;
-  }
-  return undefined;
-});
+// Content script ready messages are now handled in the main message listener
 
 // Handle get configuration request
 async function handleGetConfiguration(request, sendResponse) {
@@ -445,6 +447,9 @@ async function handleUpdateSetting(request, sendResponse) {
     const { setting, value } = request;
     console.log(`Updating setting: ${setting} = ${value}`);
     
+    // Store setting in chrome.storage
+    await chrome.storage.local.set({ [setting]: value });
+    
     sendResponse({
       success: true,
       message: `Setting ${setting} updated to ${value}`,
@@ -453,6 +458,41 @@ async function handleUpdateSetting(request, sendResponse) {
     
   } catch (error) {
     console.error('Failed to update setting:', error);
+    sendResponse({
+      success: false,
+      error: error.message,
+      requestId: request.requestId
+    });
+  }
+}
+
+// Handle get settings request
+async function handleGetSettings(request, sendResponse) {
+  try {
+    console.log('Getting settings...');
+    
+    // Get all settings from chrome.storage.local
+    const settingsKeys = [
+      'autoComplete', 'autoHint', 'autoErrorFix', 'autoOptimize',
+      'notifications', 'sound', 'tokenTotalBudget'
+    ];
+    
+    const result = await chrome.storage.local.get(settingsKeys);
+    
+    const settings = {};
+    settingsKeys.forEach(key => {
+      settings[key] = result[key];
+    });
+    
+    console.log('Settings retrieved:', settings);
+    sendResponse({
+      success: true,
+      settings: settings,
+      requestId: request.requestId
+    });
+    
+  } catch (error) {
+    console.error('Failed to get settings:', error);
     sendResponse({
       success: false,
       error: error.message,

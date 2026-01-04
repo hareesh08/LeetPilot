@@ -20,53 +20,65 @@ function testChromeTabsRemoval() {
   }
 }
 
-// Test 2: Verify needsTabId flag is used instead
-function testNeedsTabIdFlag() {
+// Test 2: Verify Monaco detector has improved detection strategies
+function testImprovedDetectionStrategies() {
   const fs = require('fs');
-  const contentScript = fs.readFileSync('src/content.js', 'utf8');
+  const monacoDetector = fs.readFileSync('src/content/monaco-detector.js', 'utf8');
   
-  // Check that needsTabId flag is used
-  const hasNeedsTabId = contentScript.includes('needsTabId: true');
+  // Check for improved detection methods
+  const hasDetectFromWindow = monacoDetector.includes('detectFromWindow');
+  const hasDetectWithLeetCodeSelectors = monacoDetector.includes('detectWithLeetCodeSelectors');
+  const hasAttemptDetection = monacoDetector.includes('attemptDetection');
   
-  if (!hasNeedsTabId) {
-    console.error('❌ FAIL: needsTabId flag not found in content script');
+  if (!hasDetectFromWindow || !hasDetectWithLeetCodeSelectors || !hasAttemptDetection) {
+    console.error('❌ FAIL: Improved detection strategies not found in monaco-detector.js');
+    console.error('   - detectFromWindow:', hasDetectFromWindow);
+    console.error('   - detectWithLeetCodeSelectors:', hasDetectWithLeetCodeSelectors);
+    console.error('   - attemptDetection:', hasAttemptDetection);
     return false;
   } else {
-    console.log('✅ PASS: needsTabId flag found in content script');
+    console.log('✅ PASS: Improved detection strategies found in monaco-detector.js');
     return true;
   }
 }
 
-// Test 3: Verify background script handles tab ID requests
-function testBackgroundTabIdHandling() {
+// Test 3: Verify content orchestrator handles detection failures gracefully
+function testDetectionFailureHandling() {
   const fs = require('fs');
-  const backgroundScript = fs.readFileSync('src/background.js', 'utf8');
+  const orchestrator = fs.readFileSync('src/content/content-orchestrator.js', 'utf8');
   
-  // Check that background script handles needsTabId
-  const handlesTabId = backgroundScript.includes('request.needsTabId') && 
-                      backgroundScript.includes('sender.tab.id');
+  // Check for graceful failure handling
+  const hasSetupFallback = orchestrator.includes('setupFallbackEditorDetection');
+  const hasTryFallback = orchestrator.includes('tryFallbackDetection');
+  const hasGracefulCatch = orchestrator.includes('catch (detectError)');
   
-  if (!handlesTabId) {
-    console.error('❌ FAIL: Background script does not handle tab ID requests');
+  if (!hasSetupFallback || !hasTryFallback || !hasGracefulCatch) {
+    console.error('❌ FAIL: Content orchestrator does not handle detection failures gracefully');
+    console.error('   - setupFallbackEditorDetection:', hasSetupFallback);
+    console.error('   - tryFallbackDetection:', hasTryFallback);
+    console.error('   - graceful catch:', hasGracefulCatch);
     return false;
   } else {
-    console.log('✅ PASS: Background script handles tab ID requests');
+    console.log('✅ PASS: Content orchestrator handles detection failures gracefully');
     return true;
   }
 }
 
-// Test 4: Verify improved Monaco Editor selectors
+// Test 4: Verify improved Monaco Editor selectors in detector
 function testImprovedSelectors() {
   const fs = require('fs');
-  const contentScript = fs.readFileSync('src/content.js', 'utf8');
+  const monacoDetector = fs.readFileSync('src/content/monaco-detector.js', 'utf8');
   
   // Check for improved selectors
-  const hasImprovedSelectors = contentScript.includes('.monaco-editor-background') &&
-                              contentScript.includes('.inputarea') &&
-                              contentScript.includes('.overflow-guard');
+  const hasMonacoStructure = monacoDetector.includes('.overflow-guard') &&
+                             monacoDetector.includes('.monaco-editor-background');
+  const hasLeetCodeSelectors = monacoDetector.includes('[class*="code-editor"]') &&
+                               monacoDetector.includes('[class*="editor-container"]');
   
-  if (!hasImprovedSelectors) {
+  if (!hasMonacoStructure || !hasLeetCodeSelectors) {
     console.error('❌ FAIL: Improved Monaco Editor selectors not found');
+    console.error('   - Monaco structure:', hasMonacoStructure);
+    console.error('   - LeetCode selectors:', hasLeetCodeSelectors);
     return false;
   } else {
     console.log('✅ PASS: Improved Monaco Editor selectors found');
@@ -74,20 +86,29 @@ function testImprovedSelectors() {
   }
 }
 
-// Test 5: Verify error handling for editor not found
-function testEditorNotFoundHandling() {
+// Test 5: Verify isMainCodeEditor is lenient with empty editors
+function testLenientEditorValidation() {
   const fs = require('fs');
-  const contentScript = fs.readFileSync('src/content.js', 'utf8');
+  const monacoDetector = fs.readFileSync('src/content/monaco-detector.js', 'utf8');
   
-  // Check for editorNotFound handling
-  const hasErrorHandling = contentScript.includes('editorNotFound') &&
-                          contentScript.includes('showEditorDetectionFailure');
+  // Check that isMainCodeEditor doesn't require code content for empty editors
+  // The updated logic should accept editors with Monaco structure even if empty
+  const hasIsMainCodeEditor = monacoDetector.includes('isMainCodeEditor');
+  const hasLeetCodeEditorCheck = monacoDetector.includes('isLeetCodeEditor');
   
-  if (!hasErrorHandling) {
-    console.error('❌ FAIL: Editor not found error handling missing');
+  if (!hasIsMainCodeEditor) {
+    console.error('❌ FAIL: isMainCodeEditor method not found');
+    return false;
+  }
+  
+  // Verify the method doesn't strictly require code content
+  const lenientValidation = monacoDetector.includes('isValidEditor = (codeArea || hasTextArea || hasMonacoStructure || isLeetCodeEditor)');
+  
+  if (!lenientValidation) {
+    console.error('❌ FAIL: Editor validation is not lenient for empty editors');
     return false;
   } else {
-    console.log('✅ PASS: Editor not found error handling present');
+    console.log('✅ PASS: Editor validation is lenient for empty editors');
     return true;
   }
 }
@@ -98,10 +119,10 @@ function runTests() {
   
   const tests = [
     testChromeTabsRemoval,
-    testNeedsTabIdFlag,
-    testBackgroundTabIdHandling,
+    testImprovedDetectionStrategies,
+    testDetectionFailureHandling,
     testImprovedSelectors,
-    testEditorNotFoundHandling
+    testLenientEditorValidation
   ];
   
   let passed = 0;
@@ -130,10 +151,10 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     runTests,
     testChromeTabsRemoval,
-    testNeedsTabIdFlag,
-    testBackgroundTabIdHandling,
+    testImprovedDetectionStrategies,
+    testDetectionFailureHandling,
     testImprovedSelectors,
-    testEditorNotFoundHandling
+    testLenientEditorValidation
   };
 }
 

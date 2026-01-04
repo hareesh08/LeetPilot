@@ -6,6 +6,7 @@ export class PopupManager {
     this.isInitialized = false;
     this.storageManager = null;
     this.inputValidator = null;
+    this.pendingRequestCallback = null; // For caution modal callbacks
   }
 
   /**
@@ -24,6 +25,9 @@ export class PopupManager {
       
       // Load required modules
       await this.loadModules();
+      
+      // Setup message listener for token warnings
+      this.setupMessageListener();
       
       // Setup tab navigation
       this.setupTabNavigation();
@@ -53,6 +57,107 @@ export class PopupManager {
       
       // Still mark as initialized so the popup is usable
       this.isInitialized = true;
+    }
+  }
+
+  /**
+   * Setup message listener for background script
+   */
+  setupMessageListener() {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      if (message.type === 'tokenWarning') {
+        this.handleTokenWarning(message.warning);
+      }
+    });
+  }
+
+  /**
+   * Handle token warning from background
+   */
+  async handleTokenWarning(warning) {
+    const { level, percent, used, total } = warning;
+    
+    // Show toast notification
+    this.showToast(level, percent);
+    
+    // Show caution modal if 100% or more
+    if (percent >= 100) {
+      this.showCautionModal(used, total);
+    }
+  }
+
+  /**
+   * Show toast notification
+   */
+  showToast(level, percent) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const messages = {
+      green: `Token usage at ${percent.toFixed(0)}% of budget - Currently safe`,
+      yellow: `Token usage at ${percent.toFixed(0)}% of budget - Approaching limit`,
+      red: `Token usage at ${percent.toFixed(0)}% of budget - Critical limit`
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${level}`;
+    toast.textContent = messages[level] || `Token usage: ${percent.toFixed(0)}%`;
+    
+    container.appendChild(toast);
+
+    // Auto-remove after 4 seconds
+    setTimeout(() => {
+      toast.style.animation = 'toast-fade-out 0.3s ease-out forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  /**
+   * Show caution modal when budget is exceeded
+   */
+  showCautionModal(used, total) {
+    const modal = document.getElementById('cautionModal');
+    const message = document.getElementById('cautionMessage');
+    
+    if (!modal || !message) return;
+
+    message.innerHTML = `
+      <strong>Token Budget Exceeded!</strong><br><br>
+      You have used <strong>${used.toLocaleString()}</strong> output tokens,
+      exceeding your budget of <strong>${total.toLocaleString()}</strong> tokens.<br><br>
+      Do you want to continue with your request?
+    `;
+
+    modal.classList.add('active');
+
+    // Setup button handlers
+    const cancelBtn = document.getElementById('cautionCancel');
+    const continueBtn = document.getElementById('cautionContinue');
+
+    const cleanup = () => {
+      modal.classList.remove('active');
+      if (cancelBtn) {
+        cancelBtn.removeEventListener('click', onCancel);
+      }
+      if (continueBtn) {
+        continueBtn.removeEventListener('click', onContinue);
+      }
+    };
+
+    const onCancel = () => {
+      cleanup();
+    };
+
+    const onContinue = () => {
+      cleanup();
+      // Allow request to proceed - user acknowledged the warning
+    };
+
+    if (cancelBtn) {
+      cancelBtn.onclick = onCancel;
+    }
+    if (continueBtn) {
+      continueBtn.onclick = onContinue;
     }
   }
 
@@ -473,12 +578,17 @@ export class PopupManager {
         const maxTokensInput = document.getElementById('maxTokens');
         const temperatureInput = document.getElementById('temperature');
         const customApiUrlInput = document.getElementById('customApiUrl');
+        const tokenTotalBudgetInput = document.getElementById('tokenTotalBudget');
         
         if (providerSelect) providerSelect.value = config.provider;
         if (apiKeyInput) apiKeyInput.value = '••••••••••••••••••••••••••••••••';
         if (modelInput) modelInput.value = config.model || '';
         if (maxTokensInput) maxTokensInput.value = config.maxTokens || '';
         if (temperatureInput) temperatureInput.value = config.temperature || '';
+        if (tokenTotalBudgetInput) tokenTotalBudgetInput.value = config.tokenTotalBudget ?? '';
+        
+        // Update token usage display
+        this.updateTokenUsage();
         
         if (config.provider === 'custom' && config.customApiUrl && customApiUrlInput) {
           customApiUrlInput.value = config.customApiUrl;
@@ -512,6 +622,7 @@ export class PopupManager {
     const maxTokensInput = document.getElementById('maxTokens');
     const temperatureInput = document.getElementById('temperature');
     const customApiUrlInput = document.getElementById('customApiUrl');
+    const tokenTotalBudgetInput = document.getElementById('tokenTotalBudget');
 
     const provider = providerSelect?.value;
     let apiKey = apiKeyInput?.value?.trim();
@@ -519,8 +630,13 @@ export class PopupManager {
     const maxTokens = parseInt(maxTokensInput?.value) || 1000;
     const temperature = parseFloat(temperatureInput?.value) || 0.7;
     const customApiUrl = customApiUrlInput?.value?.trim();
+    // Handle tokenTotalBudget: empty/NaN → null (no limit), explicit number → that number
+    const tokenTotalBudgetValue = tokenTotalBudgetInput?.value?.trim();
+    let tokenTotalBudget = tokenTotalBudgetValue && !isNaN(parseInt(tokenTotalBudgetValue))
+      ? parseInt(tokenTotalBudgetValue)
+      : null;
 
-    console.log('Saving configuration:', { provider, model, maxTokens, temperature });
+    console.log('Saving configuration:', { provider, model, maxTokens, temperature, tokenTotalBudget });
 
     if (!provider) {
       this.showStatus('Please select an AI provider', 'error');
@@ -531,6 +647,10 @@ export class PopupManager {
       const existingConfig = await this.sendMessageToBackground({ type: 'getConfiguration' });
       if (existingConfig?.success && existingConfig?.config?.apiKey) {
         apiKey = existingConfig.config.apiKey;
+        // Preserve tokenTotalBudget from existing config
+        if (!tokenTotalBudgetInput?.value && existingConfig.config.tokenTotalBudget !== undefined) {
+          tokenTotalBudget = existingConfig.config.tokenTotalBudget;
+        }
       } else {
         this.showStatus('Please enter your API key', 'error');
         return;
@@ -575,7 +695,8 @@ export class PopupManager {
           model: model || null,
           maxTokens: maxTokens,
           temperature: temperature,
-          customApiUrl: customApiUrl || null
+          customApiUrl: customApiUrl || null,
+          tokenTotalBudget: tokenTotalBudget ?? null
         }
       });
 
@@ -591,9 +712,14 @@ export class PopupManager {
         
         this.updateMainPageStatus();
         
-        setTimeout(() => {
-          this.testAPIConnection();
-        }, 1000);
+        // Only auto-test if user entered a new API key (not masked)
+        // This prevents reloading stale/invalid API keys from storage
+        const apiKeyWasChanged = apiKey !== '••••••••••••••••••••••••••••••••';
+        if (apiKeyWasChanged) {
+          setTimeout(() => {
+            this.testAPIConnection();
+          }, 1000);
+        }
       } else {
         this.showStatus('Failed to save configuration: ' + (response?.error || 'Unknown error'), 'error');
       }
@@ -619,9 +745,42 @@ export class PopupManager {
         testButton.innerHTML = '<span class="loading-spinner"></span> Testing...';
       }
 
+      const formConfig = await this.getCurrentFormConfig();
+      
+      // If API key is masked, we need to get the stored config
+      if (formConfig === null) {
+        // Get stored config but only use it if we need to test connection
+        const storedConfig = await this.sendMessageToBackground({ type: 'getConfiguration' });
+        if (storedConfig && storedConfig.success && storedConfig.config) {
+          // Use stored config for testing (it has the actual API key)
+          const response = await this.sendMessageToBackground({
+            type: 'testAPIConnection',
+            config: storedConfig.config
+          });
+          
+          if (testButton) {
+            testButton.disabled = false;
+            testButton.textContent = 'Test Connection';
+          }
+
+          if (response && response.success) {
+            this.showStatus('✓ API connection successful!', 'success');
+          } else {
+            this.showStatus('✗ API connection failed: ' + (response?.error || 'Unknown error'), 'error');
+          }
+        } else {
+          if (testButton) {
+            testButton.disabled = false;
+            testButton.textContent = 'Test Connection';
+          }
+          this.showStatus('Please enter your API key to test connection', 'error');
+        }
+        return;
+      }
+
       const response = await this.sendMessageToBackground({
         type: 'testAPIConnection',
-        config: await this.getCurrentFormConfig()
+        config: formConfig
       });
 
       if (testButton) {
@@ -655,13 +814,13 @@ export class PopupManager {
     const maxTokensInput = document.getElementById('maxTokens');
     const temperatureInput = document.getElementById('temperature');
     const customApiUrlInput = document.getElementById('customApiUrl');
+    const tokenTotalBudgetInput = document.getElementById('tokenTotalBudget');
 
     let apiKey = apiKeyInput?.value?.trim();
+    
+    // If API key is masked, don't fall back to stored key - return null to trigger manual entry
     if (apiKey === '••••••••••••••••••••••••••••••••') {
-      const response = await this.sendMessageToBackground({ type: 'getConfiguration' });
-      if (response && response.success && response.config) {
-        return response.config;
-      }
+      return null; // Signal that API key needs to be entered
     }
 
     return {
@@ -670,7 +829,11 @@ export class PopupManager {
       model: modelInput?.value?.trim() || null,
       maxTokens: parseInt(maxTokensInput?.value) || 1000,
       temperature: parseFloat(temperatureInput?.value) || 0.7,
-      customApiUrl: customApiUrlInput?.value?.trim() || null
+      customApiUrl: customApiUrlInput?.value?.trim() || null,
+      tokenTotalBudget: (() => {
+        const value = tokenTotalBudgetInput?.value?.trim();
+        return value && !isNaN(parseInt(value)) ? parseInt(value) : null;
+      })()
     };
   }
 
@@ -873,6 +1036,71 @@ export class PopupManager {
       }
     } else {
       keyValidation.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update token usage display with proper formatting
+   */
+  async updateTokenUsage() {
+    const usedTokensEl = document.getElementById('usedTokens');
+    const totalTokensEl = document.getElementById('totalTokens');
+    const usageFillEl = document.getElementById('usageFill');
+    const usagePercentEl = document.getElementById('tokenUsagePercent');
+    
+    // Get token stats from storage
+    try {
+      // Get tokenTotalBudget from chrome.storage.local first (set by handleSaveConfiguration)
+      const storageResult = await chrome.storage.local.get(['outputTokenCount', 'tokenTotalBudget', 'tokenCount']);
+      
+      // Support both old 'tokenCount' and new 'outputTokenCount'
+      const usedTokens = storageResult.outputTokenCount || storageResult.tokenCount || 0;
+      
+      // First check if tokenTotalBudget is directly stored in chrome.storage.local
+      let limit = storageResult.tokenTotalBudget;
+      
+      // If not found or is 0/null/undefined, get it from the AIProviderConfig
+      if (limit === null || limit === undefined || limit === 0) {
+        const configResponse = await this.sendMessageToBackground({ type: 'getConfiguration' });
+        // Get tokenTotalBudget from config (not maxTokens)
+        limit = configResponse?.config?.tokenTotalBudget;
+      }
+      
+      // Ensure limit is a number, default to 0 (no limit)
+      limit = Number(limit) || 0;
+      
+      // Calculate percentage (handle 0 limit - no budget set)
+      let percent = 0;
+      if (limit > 0) {
+        percent = Math.min(Math.round((usedTokens / limit) * 100), 100);
+      }
+      
+      // Format numbers with commas
+      const formattedUsed = usedTokens.toLocaleString();
+      const formattedLimit = limit > 0 ? limit.toLocaleString() : '∞';
+      
+      if (usedTokensEl) {
+        usedTokensEl.textContent = formattedUsed;
+      }
+      if (totalTokensEl) {
+        totalTokensEl.textContent = formattedLimit;
+      }
+      if (usageFillEl) {
+        usageFillEl.style.width = `${percent}%`;
+      }
+      if (usagePercentEl) {
+        usagePercentEl.textContent = `${percent}%`;
+        // Change color based on usage
+        if (percent >= 90) {
+          usagePercentEl.style.color = '#ef4444';
+        } else if (percent >= 70) {
+          usagePercentEl.style.color = '#f59e0b';
+        } else {
+          usagePercentEl.style.color = '#6366f1';
+        }
+      }
+    } catch (error) {
+      console.error('Error updating token usage:', error);
     }
   }
 

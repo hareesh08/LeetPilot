@@ -41,13 +41,14 @@ const SUPPORTED_PROVIDERS = {
  * Configuration data model
  */
 class AIProviderConfig {
-  constructor(provider, apiKey, model = null, maxTokens = 1000, temperature = 0.7, customApiUrl = null) {
+  constructor(provider, apiKey, model = null, maxTokens = 1000, temperature = 0.7, customApiUrl = null, tokenTotalBudget = null) {
     this.provider = provider;
     this.apiKey = apiKey;
     this.model = model || SUPPORTED_PROVIDERS[provider]?.defaultModel || '';
     this.maxTokens = maxTokens;
     this.temperature = temperature;
-    this.customApiUrl = customApiUrl; // For custom providers
+    this.customApiUrl = customApiUrl;
+    this.tokenTotalBudget = tokenTotalBudget;
     this.timestamp = Date.now();
   }
 
@@ -111,6 +112,13 @@ class AIProviderConfig {
       errors.push('Temperature must be a number between 0 and 2');
     }
 
+    // Validate tokenTotalBudget: null/undefined = no limit, 0 = no limit, positive number = budget limit
+    if (this.tokenTotalBudget !== null && this.tokenTotalBudget !== undefined) {
+      if (typeof this.tokenTotalBudget !== 'number' || this.tokenTotalBudget < 0) {
+        errors.push('Token total budget must be 0 (no limit) or a positive number');
+      }
+    }
+
     return errors;
   }
 
@@ -124,6 +132,7 @@ class AIProviderConfig {
       maxTokens: this.maxTokens,
       temperature: this.temperature,
       customApiUrl: this.customApiUrl,
+      tokenTotalBudget: this.tokenTotalBudget,
       timestamp: this.timestamp,
       apiKey: this.apiKey ? '[REDACTED]' : null
     };
@@ -291,7 +300,8 @@ class StorageManager {
         model: config.model,
         maxTokens: config.maxTokens,
         temperature: config.temperature,
-        customApiUrl: config.customApiUrl, // Store custom API URL
+        customApiUrl: config.customApiUrl,
+        tokenTotalBudget: config.tokenTotalBudget,
         timestamp: config.timestamp
       };
 
@@ -347,7 +357,8 @@ class StorageManager {
         config.model,
         config.maxTokens,
         config.temperature,
-        config.customApiUrl
+        config.customApiUrl,
+        config.tokenTotalBudget
       );
       aiConfig.timestamp = config.timestamp;
 
@@ -398,6 +409,8 @@ class StorageManager {
       if (updates.maxTokens !== undefined) currentConfig.maxTokens = updates.maxTokens;
       if (updates.temperature !== undefined) currentConfig.temperature = updates.temperature;
       if (updates.customApiUrl !== undefined) currentConfig.customApiUrl = updates.customApiUrl;
+
+      if (updates.tokenTotalBudget !== undefined) currentConfig.tokenTotalBudget = updates.tokenTotalBudget;
 
       // Update timestamp
       currentConfig.timestamp = Date.now();

@@ -26,7 +26,7 @@ export class PromptEngineer {
       .replace('{PROBLEM_TITLE}', problemTitle || 'Coding Problem')
       .replace('{PROBLEM_DESCRIPTION}', problemDescription || 'No description available')
       .replace('{CURRENT_CODE}', currentCode || '')
-      .replace('{LANGUAGE}', language || 'javascript');
+      .replace('{LANGUAGE}', language || 'Python');
   }
 
   /**
@@ -38,7 +38,7 @@ export class PromptEngineer {
     return this.promptTemplates.explanation
       .replace('{PROBLEM_TITLE}', problemTitle || 'Coding Problem')
       .replace('{CURRENT_CODE}', currentCode || '')
-      .replace('{LANGUAGE}', language || 'javascript');
+      .replace('{LANGUAGE}', language || 'Python');
   }
 
   /**
@@ -50,7 +50,7 @@ export class PromptEngineer {
     return this.promptTemplates.optimization
       .replace('{PROBLEM_TITLE}', problemTitle || 'Coding Problem')
       .replace('{CURRENT_CODE}', currentCode || '')
-      .replace('{LANGUAGE}', language || 'javascript');
+      .replace('{LANGUAGE}', language || 'Python');
   }
 
   /**
@@ -63,7 +63,7 @@ export class PromptEngineer {
       .replace('{PROBLEM_TITLE}', problemTitle || 'Coding Problem')
       .replace('{PROBLEM_DESCRIPTION}', problemDescription || 'No description available')
       .replace('{CURRENT_CODE}', currentCode || '')
-      .replace('{LANGUAGE}', language || 'javascript')
+      .replace('{LANGUAGE}', language || 'Python')
       .replace('{HINT_LEVEL}', hintLevel.toString());
 
     // Add previous hints context if available

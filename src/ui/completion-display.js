@@ -55,9 +55,44 @@ export class CompletionDisplay {
     const completionContainer = document.createElement('div');
     completionContainer.className = 'leetpilot-completion leetpilot-display';
 
-    // Create drag handle
+    // Create drag handle with logo
     const dragHandle = this.createDragHandle();
     completionContainer.appendChild(dragHandle);
+
+    // Create header (simplified - no logo since it's in drag handle)
+    const header = document.createElement('div');
+    header.className = 'leetpilot-popup-header';
+    header.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+
+    // Create container for title and subtitle
+    const titleContainer = document.createElement('div');
+    titleContainer.style.display = 'flex';
+    titleContainer.style.flexDirection = 'column';
+    titleContainer.style.gap = '2px';
+
+    const titleElement = document.createElement('h3');
+    titleElement.className = 'leetpilot-popup-title';
+    titleElement.textContent = 'Code Completion';
+
+    // Add subtitle
+    const subtitleElement = document.createElement('span');
+    subtitleElement.style.fontSize = '11px';
+    subtitleElement.style.fontWeight = '400';
+    subtitleElement.style.opacity = '0.85';
+    subtitleElement.style.textShadow = 'none';
+    subtitleElement.textContent = 'AI-powered suggestion';
+
+    titleContainer.appendChild(titleElement);
+    titleContainer.appendChild(subtitleElement);
+
+    const closeButton = document.createElement('button');
+    closeButton.className = 'leetpilot-popup-close';
+    closeButton.innerHTML = '×';
+    closeButton.title = 'Dismiss (Esc)';
+
+    header.appendChild(titleContainer);
+    header.appendChild(closeButton);
+    completionContainer.appendChild(header);
 
     // Create the main completion content
     const completionContent = document.createElement('div');
@@ -74,12 +109,12 @@ export class CompletionDisplay {
 
     const acceptButton = document.createElement('button');
     acceptButton.className = 'leetpilot-btn leetpilot-btn-accept';
-    acceptButton.textContent = 'Accept (Tab)';
+    acceptButton.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><polyline points="20 6 9 17 4 12"/></svg>Accept (Tab)`;
     acceptButton.title = 'Accept this suggestion';
 
     const rejectButton = document.createElement('button');
     rejectButton.className = 'leetpilot-btn leetpilot-btn-reject';
-    rejectButton.textContent = 'Dismiss (Esc)';
+    rejectButton.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Dismiss (Esc)`;
     rejectButton.title = 'Dismiss this suggestion';
 
     actionButtons.appendChild(acceptButton);
@@ -97,13 +132,34 @@ export class CompletionDisplay {
   }
 
   /**
-   * Create drag handle for the completion
+   * Create drag handle for the completion (logo + brand)
    */
   createDragHandle() {
     const dragHandle = document.createElement('div');
     dragHandle.className = 'leetpilot-drag-handle';
-    dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>';
-    dragHandle.title = 'Drag to move';
+    
+    // Create logo container
+    const logoContainer = document.createElement('div');
+    logoContainer.style.display = 'flex';
+    logoContainer.style.alignItems = 'center';
+    logoContainer.style.gap = '8px';
+    
+    // Create logo image
+    const logoImg = document.createElement('img');
+    logoImg.src = chrome.runtime.getURL('icons/logo-name-128.png');
+    logoImg.alt = 'LeetPilot Logo';
+    logoImg.style.height = '28px';
+    logoImg.style.width = 'auto';
+    logoImg.style.objectFit = 'contain';
+    logoImg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))';
+    
+    logoContainer.appendChild(logoImg);
+    dragHandle.appendChild(logoContainer);
+    dragHandle.title = 'LeetPilot - Drag to move';
+    dragHandle.style.width = 'auto';
+    dragHandle.style.padding = '4px 8px';
+    dragHandle.style.borderRadius = '8px';
+    
     return dragHandle;
   }
 
@@ -115,6 +171,8 @@ export class CompletionDisplay {
     resizeHandle.className = 'leetpilot-resize-handle';
     resizeHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M14 10V14H10V10H14ZM8 14V10H4V14H8ZM10 8V4H14V8H10ZM4 8V4H0V8H4Z"/></svg>';
     resizeHandle.title = 'Drag to resize';
+    resizeHandle.style.bottom = '4px';
+    resizeHandle.style.right = '4px';
     return resizeHandle;
   }
 

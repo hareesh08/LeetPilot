@@ -10,8 +10,10 @@
   --leetpilot-primary-light: #818cf8;
   --leetpilot-secondary: #8b5cf6;
   --leetpilot-success: #10b981;
+  --leetpilot-success-light: #34d399;
   --leetpilot-warning: #f59e0b;
   --leetpilot-error: #ef4444;
+  --leetpilot-error-light: #f87171;
   --leetpilot-info: #3b82f6;
 
   --leetpilot-bg: #1e1e36;
@@ -22,14 +24,24 @@
   --leetpilot-border: #4b5563;
 
   /* Dark theme */
-  --leetpilot-overlay-dark: rgba(0, 0, 0, 0.6);
-  --leetpilot-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  --leetpilot-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
+  --leetpilot-overlay-dark: rgba(0, 0, 0, 0.7);
+  --leetpilot-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  --leetpilot-shadow-lg: 0 25px 70px rgba(0, 0, 0, 0.6);
 
   /* Spacing */
-  --leetpilot-radius: 12px;
-  --leetpilot-radius-sm: 8px;
-  --leetpilot-radius-lg: 16px;
+  --leetpilot-radius: 16px;
+  --leetpilot-radius-sm: 10px;
+  --leetpilot-radius-lg: 20px;
+  
+  /* Modern UI enhancements */
+  --leetpilot-glass-bg: rgba(30, 30, 54, 0.95);
+  --leetpilot-glass-border: rgba(255, 255, 255, 0.15);
+  --leetpilot-backdrop-blur: blur(24px);
+  
+  /* Glow effects */
+  --leetpilot-glow-primary: 0 0 30px rgba(99, 102, 241, 0.4);
+  --leetpilot-glow-success: 0 0 30px rgba(16, 185, 129, 0.4);
+  --leetpilot-glow-error: 0 0 30px rgba(239, 68, 68, 0.4);
 }
 
 /* Light theme overrides */
@@ -43,6 +55,10 @@ body:not(.dark) {
   --leetpilot-overlay-dark: rgba(0, 0, 0, 0.4);
   --leetpilot-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   --leetpilot-shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.2);
+  
+  /* Light theme glass effect */
+  --leetpilot-glass-bg: rgba(255, 255, 255, 0.8);
+  --leetpilot-glass-border: rgba(0, 0, 0, 0.1);
 }
 
 /* ============================================
@@ -59,35 +75,53 @@ body:not(.dark) {
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(4px);
-  animation: leetpilot-fadeIn 0.2s ease-out;
+  backdrop-filter: blur(8px) saturate(150%);
+  animation: leetpilot-fadeIn 0.3s ease-out;
 }
 
 @keyframes leetpilot-fadeIn {
   from {
     opacity: 0;
+    transform: scale(1.02);
   }
   to {
     opacity: 1;
+    transform: scale(1);
   }
 }
 
 /* ============================================
    Popup Container
    ============================================ */
+/* ============================================
+   Chat Window Size (1536x1024 = 1.5 aspect ratio)
+   ============================================ */
+:root {
+  --leetpilot-chat-width: 420px;
+  --leetpilot-chat-height: auto;
+  --leetpilot-chat-max-width: 600px;
+  --leetpilot-chat-max-height: 80vh;
+}
+
 .leetpilot-popup {
   position: absolute;
-  min-width: 320px;
-  max-width: 600px;
-  max-height: 80vh;
-  background: var(--leetpilot-bg);
-  border: 1px solid var(--leetpilot-border);
+  /* Scaled according to 1536x1024 aspect ratio (1.5:1) */
+  width: var(--leetpilot-chat-width);
+  min-height: 200px;
+  max-width: var(--leetpilot-chat-max-width);
+  max-height: var(--leetpilot-chat-max-height);
+  background: var(--leetpilot-glass-bg);
+  backdrop-filter: var(--leetpilot-backdrop-blur);
+  -webkit-backdrop-filter: var(--leetpilot-backdrop-blur);
+  border: 1px solid var(--leetpilot-glass-border);
   border-radius: var(--leetpilot-radius-lg);
-  box-shadow: var(--leetpilot-shadow-lg);
+  box-shadow: var(--leetpilot-shadow-lg),
+              0 0 0 1px rgba(255, 255, 255, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: leetpilot-slideUp 0.3s ease-out;
+  animation: leetpilot-slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   /* Initial position will be set by JS */
   left: 50%;
   top: 50%;
@@ -97,16 +131,16 @@ body:not(.dark) {
 @keyframes leetpilot-slideUp {
   from {
     opacity: 0;
-    transform: translate(-50%, -45%);
+    transform: translate(-50%, -48%) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
 .leetpilot-popup.show {
-  animation: leetpilot-slideUp 0.3s ease-out forwards;
+  animation: leetpilot-slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ============================================
@@ -116,40 +150,37 @@ body:not(.dark) {
   position: absolute;
   top: 8px;
   left: 8px;
-  width: 28px;
-  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
-  color: var(--leetpilot-text-muted);
-  border-radius: 6px;
-  transition: all 0.2s ease;
   z-index: 10;
-  background: transparent;
-  border: none;
-  padding: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  transition: all 0.25s ease;
+  padding: 6px 10px;
 }
 
 .leetpilot-drag-handle:hover {
-  color: var(--leetpilot-primary);
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .leetpilot-drag-handle:active {
   cursor: grabbing;
-  color: var(--leetpilot-primary);
-  background: rgba(99, 102, 241, 0.15);
+  transform: scale(0.98);
+}
+
+.leetpilot-drag-handle img {
+  border-radius: 4px;
 }
 
 .leetpilot-drag-handle svg {
-  width: 16px;
-  height: 16px;
-  opacity: 0.7;
-}
-
-.leetpilot-drag-handle:hover svg {
-  opacity: 1;
+  width: 14px;
+  height: 14px;
+  opacity: 0.8;
 }
 
 /* ============================================
@@ -203,10 +234,40 @@ body:not(.dark) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px 14px 40px;
+  padding: 14px 16px 14px 44px;
   background: linear-gradient(135deg, var(--leetpilot-primary) 0%, var(--leetpilot-secondary) 100%);
-  border-bottom: 1px solid var(--leetpilot-border);
-  min-height: 52px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 56px;
+  position: relative;
+  backdrop-filter: var(--leetpilot-backdrop-blur);
+  -webkit-backdrop-filter: var(--leetpilot-backdrop-blur);
+}
+
+.leetpilot-popup-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 100%);
+  pointer-events: none;
+}
+
+.leetpilot-popup-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent);
 }
 
 .leetpilot-popup-title {
@@ -215,6 +276,9 @@ body:not(.dark) {
   font-weight: 600;
   color: white;
   letter-spacing: -0.3px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 /* ============================================
@@ -224,31 +288,33 @@ body:not(.dark) {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   color: white;
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 22px;
+  font-weight: 300;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   z-index: 10;
   line-height: 1;
   padding: 0;
+  backdrop-filter: blur(8px);
 }
 
 .leetpilot-popup-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1) rotate(90deg);
 }
 
 .leetpilot-popup-close:active {
-  transform: scale(0.95);
+  transform: scale(0.95) rotate(90deg);
 }
 
 /* ============================================
@@ -257,8 +323,8 @@ body:not(.dark) {
 .leetpilot-popup-content {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  max-height: calc(80vh - 60px);
+  padding: 20px;
+  max-height: calc(80vh - 80px);
   scroll-behavior: smooth;
 }
 
@@ -272,7 +338,7 @@ body:not(.dark) {
 }
 
 .leetpilot-popup-content::-webkit-scrollbar-thumb {
-  background: var(--leetpilot-border);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
@@ -302,13 +368,44 @@ body:not(.dark) {
   border: 2px solid var(--leetpilot-border);
   transition: all 0.3s ease;
   cursor: default;
+  position: relative;
+}
+
+.leetpilot-progress-dot::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--leetpilot-primary), var(--leetpilot-secondary));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
 }
 
 .leetpilot-progress-dot.active {
-  background: var(--leetpilot-primary);
-  border-color: var(--leetpilot-primary);
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-  transform: scale(1.1);
+  background: linear-gradient(135deg, var(--leetpilot-primary), var(--leetpilot-secondary));
+  border-color: transparent;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
+  transform: scale(1.2);
+}
+
+.leetpilot-progress-dot.active::before {
+  opacity: 1;
+  animation: leetpilot-pulse 2s infinite;
+}
+
+@keyframes leetpilot-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.3;
+  }
 }
 
 .leetpilot-hint-content {
@@ -400,15 +497,16 @@ body:not(.dark) {
    Completion Display Styles
    ============================================ */
 .leetpilot-completion {
-  min-width: 300px;
+  min-width: 320px;
   max-width: 500px;
   border-radius: var(--leetpilot-radius);
   border-top: 3px solid var(--leetpilot-success);
+  box-shadow: var(--leetpilot-glow-success);
 }
 
 .leetpilot-completion-content {
-  padding: 12px 16px;
-  padding-top: 40px;
+  padding: 16px 20px;
+  padding-top: 48px;
 }
 
 .leetpilot-suggestion-text {
@@ -441,15 +539,33 @@ body:not(.dark) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 16px;
+  padding: 10px 20px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   border-radius: var(--leetpilot-radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   outline: none;
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+}
+
+.leetpilot-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.leetpilot-btn:hover::before {
+  left: 100%;
 }
 
 .leetpilot-btn:disabled {
@@ -457,71 +573,80 @@ body:not(.dark) {
   cursor: not-allowed;
 }
 
+.leetpilot-btn:disabled::before {
+  display: none;
+}
+
 .leetpilot-btn-accept {
   background: linear-gradient(135deg, var(--leetpilot-primary) 0%, var(--leetpilot-secondary) 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: var(--leetpilot-glow-primary);
 }
 
 .leetpilot-btn-accept:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
 }
 
 .leetpilot-btn-reject {
-  background: var(--leetpilot-bg-lighter);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--leetpilot-text-muted);
-  border: 1px solid var(--leetpilot-border);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
 }
 
 .leetpilot-btn-reject:hover:not(:disabled) {
-  background: var(--leetpilot-bg-light);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--leetpilot-text);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 .leetpilot-btn-next-hint {
   background: linear-gradient(135deg, var(--leetpilot-primary) 0%, var(--leetpilot-secondary) 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: var(--leetpilot-glow-primary);
 }
 
 .leetpilot-btn-next-hint:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
 }
 
 .leetpilot-btn-reset {
-  background: var(--leetpilot-bg-lighter);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--leetpilot-text);
-  border: 1px solid var(--leetpilot-border);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
 }
 
 .leetpilot-btn-reset:hover:not(:disabled) {
-  background: var(--leetpilot-bg-light);
+  background: rgba(255, 255, 255, 0.12);
   border-color: var(--leetpilot-primary);
-  color: var(--leetpilot-primary);
+  color: var(--leetpilot-primary-light);
+  transform: translateY(-1px);
 }
 
 .leetpilot-btn-retry {
   background: linear-gradient(135deg, var(--leetpilot-success) 0%, #059669 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: var(--leetpilot-glow-success);
 }
 
 .leetpilot-btn-retry:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
 }
 
 .leetpilot-btn-config {
   background: linear-gradient(135deg, var(--leetpilot-info) 0%, #2563eb 100%);
   color: white;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 
 .leetpilot-btn-config:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
 }
 
 /* ============================================
@@ -624,6 +749,8 @@ body:not(.dark) {
    ============================================ */
 @media (max-width: 480px) {
   .leetpilot-popup {
+    width: calc(100vw - 20px);
+    height: auto;
     min-width: 280px;
     max-width: calc(100vw - 20px);
     max-height: 90vh;
@@ -682,4 +809,69 @@ body:not(.dark) {
   .leetpilot-popup-close {
     display: none;
   }
+}
+
+/* ============================================
+   Image Size Constraints (1024x1536 ratio)
+   ============================================ */
+.leetpilot-image-container {
+  max-width: 100%;
+  max-height: 1024px;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--leetpilot-bg-light);
+  border: 1px solid var(--leetpilot-border);
+  border-radius: var(--leetpilot-radius-sm);
+  padding: 8px;
+}
+
+.leetpilot-image-container img {
+  max-width: 100%;
+  max-height: 1024px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* Aspect ratio based on 1024x1536 (2:3 ratio) */
+.leetpilot-image-constrained {
+  max-width: 1536px;
+  max-height: 1024px;
+  width: auto;
+  height: auto;
+}
+
+/* Chat message images */
+.chat-message img {
+  max-width: 100%;
+  max-height: 1024px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--leetpilot-radius-sm);
+  margin: 8px 0;
+}
+
+/* Hint content images */
+.leetpilot-hint-content img {
+  max-width: 100%;
+  max-height: 1024px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--leetpilot-radius-sm);
+  margin: 12px 0;
+}
+
+/* Completion suggestion images */
+.leetpilot-suggestion-text img {
+  max-width: 100%;
+  max-height: 1024px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--leetpilot-radius-sm);
 }

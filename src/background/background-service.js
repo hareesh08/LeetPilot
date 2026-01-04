@@ -250,6 +250,10 @@ class BackgroundService {
       
       const response = await aiClient.makeRequest(prompt, request.type);
       
+      // Track output tokens and check budget
+      const outputTokens = response.outputTokens || 0;
+      await this.trackOutputTokens(outputTokens);
+      
       const filteredResponse = this.promptEngineer.filterResponse(response.content, request.type);
       const sanitizedContent = this.promptEngineer.sanitizeContent(filteredResponse.content);
       
@@ -334,6 +338,7 @@ class BackgroundService {
 
   /**
    * Handle get configuration request
+   * Returns full config with apiKey for internal use (popup) and sanitized for external
    */
   async handleGetConfiguration(sendResponse) {
     try {
@@ -342,15 +347,38 @@ class BackgroundService {
       }
       
       const config = await this.storageManager.retrieveConfiguration();
-      sendResponse({ 
-        success: true, 
-        config: config ? config.getSanitized() : null 
+      if (!config) {
+        sendResponse({
+          success: true,
+          config: null
+        });
+        return;
+      }
+      
+      // Get tokenTotalBudget from storage (stored separately)
+      const storageResult = await chrome.storage.local.get(['tokenTotalBudget']);
+      const tokenTotalBudget = storageResult.tokenTotalBudget;
+      
+      // Return full config with apiKey for internal use (popup)
+      // Also include tokenTotalBudget which is stored separately
+      sendResponse({
+        success: true,
+        config: {
+          provider: config.provider,
+          apiKey: config.apiKey,  // Include actual API key for internal use
+          model: config.model,
+          maxTokens: config.maxTokens,
+          temperature: config.temperature,
+          customApiUrl: config.customApiUrl,
+          tokenTotalBudget: tokenTotalBudget ?? config.tokenTotalBudget,
+          timestamp: config.timestamp
+        }
       });
     } catch (error) {
       console.error('Failed to get configuration:', error);
-      sendResponse({ 
-        success: false, 
-        error: error.message 
+      sendResponse({
+        success: false,
+        error: error.message
       });
     }
   }
@@ -380,7 +408,8 @@ class BackgroundService {
         config.model,
         config.maxTokens,
         config.temperature,
-        config.customApiUrl
+        config.customApiUrl,
+        config.tokenTotalBudget
       );
       
       // Validate the configuration
@@ -396,9 +425,14 @@ class BackgroundService {
       // Store the configuration
       await this.storageManager.storeAPIKey(configObj);
       
-      sendResponse({ 
-        success: true, 
-        message: 'Configuration saved successfully' 
+      // Also store tokenTotalBudget separately for easy access
+      // Always save tokenTotalBudget to ensure it's properly tracked
+      // null/undefined means no limit, 0 also means no limit
+      await chrome.storage.local.set({ tokenTotalBudget: config.tokenTotalBudget ?? null });
+      
+      sendResponse({
+        success: true,
+        message: 'Configuration saved successfully'
       });
 
     } catch (error) {
@@ -438,7 +472,8 @@ class BackgroundService {
         config.model,
         config.maxTokens,
         config.temperature,
-        config.customApiUrl
+        config.customApiUrl,
+        config.tokenTotalBudget
       );
       
       const validationErrors = configObj.validate();
@@ -579,6 +614,128 @@ class BackgroundService {
         errorCategory: 'unknown',
         requestId: request.requestId
       });
+    }
+  }
+
+  /**
+   * Track output tokens from API responses
+   */
+  async trackOutputTokens(outputTokens) {
+    try {
+      if (outputTokens <= 0) return;
+
+      // Get current token count
+      const result = await chrome.storage.local.get(['outputTokenCount', 'tokenTotalBudget']);
+      const currentCount = result.outputTokenCount || 0;
+      const totalBudget = result.tokenTotalBudget || 0;
+
+      // Update token count
+      const newCount = currentCount + outputTokens;
+      await chrome.storage.local.set({ outputTokenCount: newCount });
+
+      // Increment request count
+      const requestResult = await chrome.storage.local.get(['requestCount']);
+      const requestCount = (requestResult.requestCount || 0) + 1;
+      await chrome.storage.local.set({ requestCount: requestCount });
+
+      // Check budget warnings
+      if (totalBudget > 0) {
+        const percentUsed = (newCount / totalBudget) * 100;
+        
+        if (percentUsed >= 100) {
+          // Budget exceeded - send warning but allow request to proceed
+          console.warn(`Token budget exceeded: ${percentUsed.toFixed(1)}% used`);
+        } else if (percentUsed >= 90) {
+          // 90% - Red warning
+          await this.sendTokenWarning('red', percentUsed, newCount, totalBudget);
+        } else if (percentUsed >= 70) {
+          // 70% - Yellow warning
+          await this.sendTokenWarning('yellow', percentUsed, newCount, totalBudget);
+        } else if (percentUsed >= 50) {
+          // 50% - Green warning
+          await this.sendTokenWarning('green', percentUsed, newCount, totalBudget);
+        }
+      }
+    } catch (error) {
+      console.error('Error tracking output tokens:', error);
+    }
+  }
+
+  /**
+   * Send token warning to popup
+   */
+  async sendTokenWarning(level, percent, used, total) {
+    try {
+      // Store warning info for popup to read
+      await chrome.storage.local.set({
+        tokenWarning: {
+          level: level,
+          percent: percent,
+          used: used,
+          total: total,
+          timestamp: Date.now()
+        }
+      });
+
+      // Send message to any open popup
+      chrome.runtime.sendMessage({
+        type: 'tokenWarning',
+        warning: {
+          level: level,
+          percent: percent,
+          used: used,
+          total: total
+        }
+      }).catch(() => {
+        // Popup may not be open, ignore
+      });
+    } catch (error) {
+      console.error('Error sending token warning:', error);
+    }
+  }
+
+  /**
+   * Get current token stats
+   */
+  async getTokenStats() {
+    try {
+      const result = await chrome.storage.local.get([
+        'outputTokenCount',
+        'tokenTotalBudget',
+        'requestCount'
+      ]);
+      
+      return {
+        usedTokens: result.outputTokenCount || 0,
+        totalBudget: result.tokenTotalBudget || 0,
+        requestCount: result.requestCount || 0,
+        percentUsed: result.tokenTotalBudget > 0
+          ? ((result.outputTokenCount || 0) / result.tokenTotalBudget) * 100
+          : 0
+      };
+    } catch (error) {
+      console.error('Error getting token stats:', error);
+      return {
+        usedTokens: 0,
+        totalBudget: 0,
+        requestCount: 0,
+        percentUsed: 0
+      };
+    }
+  }
+
+  /**
+   * Clear token stats
+   */
+  async clearTokenStats() {
+    try {
+      await chrome.storage.local.set({
+        outputTokenCount: 0,
+        requestCount: 0
+      });
+      console.log('Token stats cleared');
+    } catch (error) {
+      console.error('Error clearing token stats:', error);
     }
   }
 

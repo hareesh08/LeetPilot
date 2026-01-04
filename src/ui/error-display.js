@@ -58,9 +58,16 @@ export class ErrorDisplay {
     const dragHandle = this.createDragHandle();
     popup.appendChild(dragHandle);
 
-    // Create header
+    // Create header (simplified - logo is now in drag handle)
     const header = document.createElement('div');
     header.className = 'leetpilot-popup-header';
+    header.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+
+    // Create container for title and subtitle
+    const titleContainer = document.createElement('div');
+    titleContainer.style.display = 'flex';
+    titleContainer.style.flexDirection = 'column';
+    titleContainer.style.gap = '2px';
 
     const titleElement = document.createElement('h3');
     titleElement.className = 'leetpilot-popup-title';
@@ -68,12 +75,23 @@ export class ErrorDisplay {
     // Set title based on error category
     titleElement.textContent = this.getErrorTitle(errorCategory);
 
+    // Add subtitle with error category
+    const subtitleElement = document.createElement('span');
+    subtitleElement.style.fontSize = '11px';
+    subtitleElement.style.fontWeight = '400';
+    subtitleElement.style.opacity = '0.85';
+    subtitleElement.style.textShadow = 'none';
+    subtitleElement.textContent = errorCategory ? `${errorCategory} error` : 'Something went wrong';
+
+    titleContainer.appendChild(titleElement);
+    titleContainer.appendChild(subtitleElement);
+
     const closeButton = document.createElement('button');
     closeButton.className = 'leetpilot-popup-close';
     closeButton.innerHTML = '×';
     closeButton.title = 'Close (Esc)';
 
-    header.appendChild(titleElement);
+    header.appendChild(titleContainer);
     header.appendChild(closeButton);
 
     // Create content with scroll
@@ -118,13 +136,34 @@ export class ErrorDisplay {
   }
 
   /**
-   * Create drag handle for the popup
+   * Create drag handle for the popup (logo + brand)
    */
   createDragHandle() {
     const dragHandle = document.createElement('div');
     dragHandle.className = 'leetpilot-drag-handle';
-    dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="4" cy="4" r="1.5"/><circle cx="12" cy="4" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/></svg>';
-    dragHandle.title = 'Drag to move';
+    
+    // Create logo container
+    const logoContainer = document.createElement('div');
+    logoContainer.style.display = 'flex';
+    logoContainer.style.alignItems = 'center';
+    logoContainer.style.gap = '8px';
+    
+    // Create logo image
+    const logoImg = document.createElement('img');
+    logoImg.src = chrome.runtime.getURL('icons/logo-name-128.png');
+    logoImg.alt = 'LeetPilot Logo';
+    logoImg.style.height = '28px';
+    logoImg.style.width = 'auto';
+    logoImg.style.objectFit = 'contain';
+    logoImg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))';
+    
+    logoContainer.appendChild(logoImg);
+    dragHandle.appendChild(logoContainer);
+    dragHandle.title = 'LeetPilot - Drag to move';
+    dragHandle.style.width = 'auto';
+    dragHandle.style.padding = '4px 8px';
+    dragHandle.style.borderRadius = '8px';
+    
     return dragHandle;
   }
 
@@ -136,6 +175,8 @@ export class ErrorDisplay {
     resizeHandle.className = 'leetpilot-resize-handle';
     resizeHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M14 10V14H10V10H14ZM8 14V10H4V14H8ZM10 8V4H14V8H10ZM4 8V4H0V8H4Z"/></svg>';
     resizeHandle.title = 'Drag to resize';
+    resizeHandle.style.bottom = '4px';
+    resizeHandle.style.right = '4px';
     return resizeHandle;
   }
 

@@ -68,7 +68,21 @@
    * Attempt to detect Monaco Editor using multiple strategies
    */
   attemptDetection() {
-    // Strategy 1: Look for Monaco Editor instances using multiple selectors
+    // Strategy 0: Check if Monaco is available on window object
+    const windowEditor = this.detectFromWindow();
+    if (windowEditor) {
+      console.log('Detected Monaco from window object');
+      return windowEditor;
+    }
+
+    // Strategy 1: Use LeetCode-specific selectors
+    const leetCodeEditor = this.detectWithLeetCodeSelectors();
+    if (leetCodeEditor) {
+      console.log('Detected editor using LeetCode selectors');
+      return leetCodeEditor;
+    }
+
+    // Strategy 2: Look for Monaco Editor instances using multiple selectors
     const editorSelectors = [
       '.monaco-editor',
       '.view-lines',
@@ -87,7 +101,7 @@
       if (elements.length > 0) {
         // Find the main code editor (not auxiliary editors like diff viewers)
         for (const element of elements) {
-          const editorContainer = element.closest('.monaco-editor') || 
+          const editorContainer = element.closest('.monaco-editor') ||
                                  element.closest('[class*="monaco"]') ||
                                  element.closest('[class*="editor"]');
 
@@ -100,13 +114,35 @@
       }
     }
 
-    // Strategy 2: Additional fallback - look for any element with Monaco-like characteristics
+    // Strategy 3: Additional fallback - look for any element with Monaco-like characteristics
     if (!foundEditor) {
       const potentialEditors = document.querySelectorAll('div[class*="editor"], div[class*="monaco"], div[role="textbox"]');
       for (const element of potentialEditors) {
         if (this.isMainCodeEditor(element)) {
           foundEditor = element;
           break;
+        }
+      }
+    }
+
+    // Strategy 4: Last resort - look for any textarea that could be an editor
+    if (!foundEditor) {
+      const textareas = document.querySelectorAll('textarea');
+      for (const textarea of textareas) {
+        const parent = textarea.parentElement;
+        if (parent && this.isMainCodeEditor(parent)) {
+          foundEditor = parent;
+          break;
+        }
+        // Also check if textarea itself could be the editor
+        const rect = textarea.getBoundingClientRect();
+        if (rect.width > 100 && rect.height > 50) {
+          // Check if it's in an editor-like container
+          const container = textarea.closest('[class*="editor"], [class*="code"]');
+          if (container) {
+            foundEditor = textarea;
+            break;
+          }
         }
       }
     }
@@ -130,7 +166,7 @@
     }
 
     // Exclude minimap and other auxiliary components
-    if (editorClasses.includes('minimap') || 
+    if (editorClasses.includes('minimap') ||
         editorClasses.includes('scrollbar') ||
         editorClasses.includes('suggest-widget') ||
         editorClasses.includes('parameter-hints')) {
@@ -138,7 +174,7 @@
     }
 
     // Look for indicators that this is the main code editor
-    const codeArea = editorElement.querySelector('.view-lines') || 
+    const codeArea = editorElement.querySelector('.view-lines') ||
                      editorElement.querySelector('.lines-content') ||
                      editorElement.querySelector('[class*="view-line"]');
 
@@ -151,14 +187,23 @@
                               editorElement.querySelector('.monaco-editor-background') ||
                               editorElement.classList.contains('monaco-editor');
 
+    // LeetCode-specific editor container check
+    const isLeetCodeEditor = editorElement.closest('[class*="code-editor"]') ||
+                            editorElement.closest('[class*="editor-container"]') ||
+                            editorElement.closest('[class*="ace"]') ||
+                            editorElement.classList.contains('code');
+    
     // Check if element is visible and has reasonable dimensions
     const rect = editorElement.getBoundingClientRect();
     const isVisible = rect.width > 100 && rect.height > 50;
 
-    // Additional validation: check for code-like content
+    // Check for code-like content (optional - empty editors are still valid)
     const hasCodeContent = this.hasCodeLikeContent(editorElement);
 
-    return (codeArea || hasTextArea || hasMonacoStructure) && isVisible && hasCodeContent;
+    // For LeetCode, accept editors with Monaco structure even if empty
+    const isValidEditor = (codeArea || hasTextArea || hasMonacoStructure || isLeetCodeEditor) && isVisible;
+    
+    return isValidEditor;
   }
 
   /**
@@ -364,6 +409,67 @@
     });
 
     return observer;
+  }
+
+  /**
+   * Try to detect editor using LeetCode's specific selectors
+   */
+  detectWithLeetCodeSelectors() {
+    // LeetCode-specific selectors for their code editor
+    const leetCodeSelectors = [
+      '[class*="code-editor"]',
+      '[class*="editor-container"]',
+      '[class*="monaco-container"]',
+      '.monaco-editor',
+      '#editor',
+      '[data-cy="code-editor"]'
+    ];
+
+    for (const selector of leetCodeSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        // Try to find the Monaco editor within this container
+        const monacoEditor = element.closest('.monaco-editor') || element.querySelector('.monaco-editor');
+        if (monacoEditor && this.isMainCodeEditor(monacoEditor)) {
+          return monacoEditor;
+        }
+        // If element itself looks like an editor
+        if (this.isMainCodeEditor(element)) {
+          return element;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Try to get Monaco from window object (Monaco sometimes exposes itself)
+   */
+  detectFromWindow() {
+    // Check if Monaco is available globally
+    if (window.monaco) {
+      try {
+        // Try to get active models/editors from Monaco
+        const models = window.monaco.editor.getModels();
+        if (models && models.length > 0) {
+          // Try to find the DOM element for this model
+          for (const model of models) {
+            const editor = window.monaco.editor.getEditors().find(e => e.getModel() === model);
+            if (editor && editor.getDomNode()) {
+              const domNode = editor.getDomNode();
+              const monacoContainer = domNode.closest('.monaco-editor');
+              if (monacoContainer) {
+                return domNode;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to detect Monaco from window object:', e);
+      }
+    }
+    return null;
   }
 
     /**

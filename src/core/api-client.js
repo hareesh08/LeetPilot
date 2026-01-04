@@ -105,7 +105,8 @@ export class AIProviderClient {
       content: data.choices?.[0]?.message?.content || '',
       provider: 'openai',
       model: this.config.model,
-      usage: data.usage
+      usage: data.usage,
+      outputTokens: data.usage?.completion_tokens || 0
     };
   }
 
@@ -148,7 +149,8 @@ export class AIProviderClient {
       content: data.content?.[0]?.text || '',
       provider: 'anthropic',
       model: this.config.model,
-      usage: data.usage
+      usage: data.usage,
+      outputTokens: data.usage?.output_tokens || 0
     };
   }
 
@@ -193,7 +195,8 @@ export class AIProviderClient {
       content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
       provider: 'gemini',
       model: this.config.model,
-      usage: data.usageMetadata
+      usage: data.usageMetadata,
+      outputTokens: data.usageMetadata?.outputTokenCount || 0
     };
   }
 
@@ -226,20 +229,40 @@ export class AIProviderClient {
 
     const data = await response.json();
     
+    // Handle HTTP error responses first (including 401 Invalid apiKey)
+    if (!response.ok) {
+      // Try various error response formats
+      const errorMsg = data?.error?.message ||
+                      data?.error ||
+                      data?.msg ||
+                      data?.detail?.msg ||
+                      data?.detail ||
+                      data?.message ||
+                      `HTTP ${response.status}: ${response.statusText}`;
+      console.error('Custom provider API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: data,
+        errorMsg: errorMsg
+      });
+      throw new Error(errorMsg);
+    }
+
     // Handle non-standard response formats (e.g., {status, msg, body})
     if (data.status !== undefined) {
-      // Check for error status codes
-      if (data.status !== '200' && data.status !== 200) {
-        const errorMsg = data.msg || `API returned status: ${data.status}`;
+      // Check for error status codes (string or number)
+      const statusCode = typeof data.status === 'string' ? parseInt(data.status, 10) : data.status;
+      if (statusCode !== 200 && statusCode !== 201 && statusCode !== 0) {
+        const errorMsg = data.msg || data.error || `API returned status: ${data.status}`;
         throw new Error(errorMsg);
       }
       
       // Extract content from body field
       if (data.body) {
-        const content = data.body.choices?.[0]?.message?.content || 
-                       data.body.content || 
-                       data.body.text || 
-                       '';
+        const content = data.body.choices?.[0]?.message?.content ||
+                       data.body.content ||
+                       data.body.text ||
+                        '';
         
         if (!content || content.trim() === '') {
           throw new Error('Custom provider returned empty content in body field');
@@ -252,12 +275,6 @@ export class AIProviderClient {
           usage: data.body.usage
         };
       }
-    }
-    
-    // Handle standard HTTP error responses
-    if (!response.ok) {
-      const errorMsg = data.error?.message || data.msg || `HTTP ${response.status}: ${response.statusText}`;
-      throw new Error(errorMsg);
     }
 
     // Handle OpenAI-compatible format
@@ -281,7 +298,8 @@ export class AIProviderClient {
       content: content,
       provider: 'custom',
       model: this.config.model,
-      usage: data.usage
+      usage: data.usage,
+      outputTokens: data.usage?.completion_tokens || 0
     };
   }
 }
