@@ -29,11 +29,14 @@ jobs:
       - name: Run tests
         run: npm test
         
-      - name: Validate package
-        run: npm run validate:all
+      - name: Validate icons
+        run: npm run validate:icons
         
       - name: Create release package
         run: npm run package
+        
+      - name: Validate package
+        run: npm run validate:package
         
       - name: Get version tag
         id: version
