@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build extension
+        run: npm run build:prod
+        
+      - name: Run tests
+        run: npm test
+        
+      - name: Validate package
+        run: npm run validate:all
+        
+      - name: Create release package
+        run: npm run package
+        
+      - name: Get version tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        shell: bash
+        
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Changes in v${{ github.ref_name }}
+            
+            See [CHANGELOG.md](./CHANGELOG.md) for details.
+            
+            ## Installation
+            
+            1. Download the extension ZIP below
+            2. Extract the ZIP file
+            3. Open Chrome → chrome://extensions/
+            4. Enable "Developer mode"
+            5. Click "Load unpacked" and select the extracted folder
+            
+            ## Files
+            - `leetpilot-extension.zip` - Production build
+            
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./leetpilot-extension.zip
+          asset_name: leetpilot-extension-v${{ steps.version.outputs.VERSION }}.zip
+          asset_content_type: application/zip
+          
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            leetpilot-extension.zip
+          retention-days: 7
