@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LeetPilot (Dev)",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "AI-powered code completion and educational hints for LeetCode with BYOK (Bring Your Own Key) privacy",
   "short_name": "LeetPilot",
   "author": "LeetPilot Team",
@@ -101,5 +101,5 @@
     }
   },
   "minimum_chrome_version": "88",
-  "version_name": "1.0.0-dev"
+  "version_name": "1.2.1-dev"
 }

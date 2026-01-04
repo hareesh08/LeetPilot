@@ -308,8 +308,10 @@
     
     const content = response.suggestion || response.explanation || response.optimization || response.hint || 'No response';
     
-    const existingDisplay = document.querySelector('.leetpilot-response');
+    // Check if response already has a display - don't create duplicate
+    const existingDisplay = document.querySelector('.leetpilot-response, .leetpilot-hint, .leetpilot-completion');
     if (existingDisplay) {
+      console.log('Existing display found, removing before creating new one');
       existingDisplay.remove();
     }
 

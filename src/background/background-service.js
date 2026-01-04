@@ -114,24 +114,12 @@ class BackgroundService {
 
   /**
    * Setup service event handlers
+   * Note: In service worker context, we use chrome.runtime.onMessage instead of document events
    */
   setupServiceHandlers() {
-    // Listen for service events from message router
-    document.addEventListener('leetpilot-service-ai', (event) => {
-      this.handleAIRequest(event.detail.request, event.detail.sendResponse);
-    });
-    
-    document.addEventListener('leetpilot-service-config', (event) => {
-      this.handleConfigRequest(event.detail.request, event.detail.sendResponse);
-    });
-    
-    document.addEventListener('leetpilot-service-security', (event) => {
-      this.handleSecurityRequest(event.detail.request, event.detail.sendResponse);
-    });
-    
-    document.addEventListener('leetpilot-service-system', (event) => {
-      this.handleSystemRequest(event.detail.request, event.detail.sendResponse);
-    });
+    // Service workers use chrome.runtime.onMessage for communication
+    // Document-based event listeners are not available in service workers
+    // The message routing is handled by the MessageRouter class
   }
 
   /**
@@ -217,6 +205,25 @@ class BackgroundService {
       if (!config) {
         const error = new Error('No AI provider configuration found. Please configure your API key first.');
         error.category = 'configuration';
+        throw error;
+      }
+
+      // Check token budget before making request
+      const tokenResult = await chrome.storage.local.get(['outputTokenCount', 'tokenTotalBudget']);
+      let usedTokens = tokenResult.outputTokenCount || 0;
+      let totalBudget = tokenResult.tokenTotalBudget;
+      
+      // If tokenTotalBudget not found in storage, check the config object
+      if (totalBudget === undefined || totalBudget === null) {
+        totalBudget = config.tokenTotalBudget;
+      }
+      
+      // Ensure totalBudget is a number (0 means no limit)
+      totalBudget = Number(totalBudget) || 0;
+      
+      if (totalBudget > 0 && usedTokens >= totalBudget) {
+        const error = new Error('Token budget has been exceeded. Please reset your token usage or increase the budget in settings.');
+        error.category = 'quota';
         throw error;
       }
 

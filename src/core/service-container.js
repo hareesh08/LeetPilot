@@ -141,44 +141,35 @@ export const container = new ServiceContainer();
 
 /**
  * Service registration helper
+ * Uses dynamic imports for better ES module compatibility
  */
-export function registerServices(container) {
+export async function registerServices(container) {
   // Import services dynamically to avoid circular dependencies
-  
-  container.register('storageManager', () => {
-    const { StorageManager } = require('./storage-manager.js');
-    return new StorageManager();
-  });
+  const [
+    { StorageManager },
+    { InputValidator },
+    { SecurityMonitor },
+    { ComprehensiveErrorHandler },
+    { RateLimiter },
+    { AIProviderClient }
+  ] = await Promise.all([
+    import('./storage-manager.js'),
+    import('./input-validator.js'),
+    import('./security-monitor.js'),
+    import('./error-handler.js'),
+    import('./rate-limiter.js'),
+    import('./api-client.js')
+  ]);
 
-  container.register('inputValidator', () => {
-    const { InputValidator } = require('./input-validator.js');
-    return new InputValidator();
-  });
+  container.register('storageManager', () => new StorageManager());
+  container.register('inputValidator', () => new InputValidator());
+  container.register('securityMonitor', () => new SecurityMonitor());
+  container.register('errorHandler', () => new ComprehensiveErrorHandler());
+  container.register('rateLimiter', () => new RateLimiter());
 
-  container.register('securityMonitor', () => {
-    const { SecurityMonitor } = require('./security-monitor.js');
-    return new SecurityMonitor();
-  });
-
-  container.register('errorHandler', () => {
-    const { ComprehensiveErrorHandler } = require('./error-handler.js');
-    return new ComprehensiveErrorHandler();
-  });
-
-  container.register('rateLimiter', () => {
-    const { RateLimiter } = require('./rate-limiter.js');
-    return new RateLimiter();
-  });
-
-  container.register('apiClient', (storageManager) => {
-    const { AIProviderClient } = require('./api-client.js');
-    // API client needs configuration, so it's created on demand
-    return {
-      createClient: async (config) => {
-        return new AIProviderClient(config);
-      }
-    };
-  }, { dependencies: ['storageManager'] });
+  container.register('apiClient', () => ({
+    createClient: async (config) => new AIProviderClient(config)
+  }));
 
   return container;
 }

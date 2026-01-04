@@ -55,7 +55,7 @@ class AIProviderConfig {
   /**
    * Validate the configuration
    */
-  validate() {
+  validate(checkApiKey = true) {
     const errors = [];
 
     // Validate provider
@@ -63,20 +63,22 @@ class AIProviderConfig {
       errors.push('Invalid or unsupported AI provider');
     }
 
-    // Validate API key
-    if (!this.apiKey || typeof this.apiKey !== 'string') {
-      errors.push('API key is required');
-    } else {
-      const providerInfo = SUPPORTED_PROVIDERS[this.provider];
-      if (providerInfo) {
-        // Check key length
-        if (this.apiKey.length < providerInfo.minKeyLength) {
-          errors.push(`API key too short for ${providerInfo.name}`);
-        }
-        
-        // Check key prefix if required (skip for custom providers)
-        if (this.provider !== 'custom' && providerInfo.keyPrefix && !this.apiKey.startsWith(providerInfo.keyPrefix)) {
-          errors.push(`Invalid API key format for ${providerInfo.name}`);
+    // Validate API key only if checkApiKey is true and apiKey is provided
+    if (checkApiKey) {
+      if (!this.apiKey || typeof this.apiKey !== 'string') {
+        errors.push('API key is required');
+      } else {
+        const providerInfo = SUPPORTED_PROVIDERS[this.provider];
+        if (providerInfo) {
+          // Check key length
+          if (this.apiKey.length < providerInfo.minKeyLength) {
+            errors.push(`API key too short for ${providerInfo.name}`);
+          }
+          
+          // Check key prefix if required (skip for custom providers)
+          if (this.provider !== 'custom' && providerInfo.keyPrefix && !this.apiKey.startsWith(providerInfo.keyPrefix)) {
+            errors.push(`Invalid API key format for ${providerInfo.name}`);
+          }
         }
       }
     }
@@ -404,22 +406,88 @@ class StorageManager {
 
       // Apply updates
       if (updates.provider !== undefined) currentConfig.provider = updates.provider;
-      if (updates.apiKey !== undefined) currentConfig.apiKey = updates.apiKey;
+      // Only update apiKey if provided (preserve existing if not)
+      if (updates.apiKey !== undefined && updates.apiKey !== null && updates.apiKey !== '') {
+        currentConfig.apiKey = updates.apiKey;
+      }
       if (updates.model !== undefined) currentConfig.model = updates.model;
       if (updates.maxTokens !== undefined) currentConfig.maxTokens = updates.maxTokens;
       if (updates.temperature !== undefined) currentConfig.temperature = updates.temperature;
       if (updates.customApiUrl !== undefined) currentConfig.customApiUrl = updates.customApiUrl;
 
-      if (updates.tokenTotalBudget !== undefined) currentConfig.tokenTotalBudget = updates.tokenTotalBudget;
+      // Handle tokenTotalBudget update
+      const needsBudgetSave = updates.tokenTotalBudget !== undefined &&
+                              updates.tokenTotalBudget !== currentConfig.tokenTotalBudget;
+      if (updates.tokenTotalBudget !== undefined) {
+        currentConfig.tokenTotalBudget = updates.tokenTotalBudget;
+      }
 
       // Update timestamp
       currentConfig.timestamp = Date.now();
 
-      // Store updated configuration
-      return await this.storeAPIKey(currentConfig);
+      // Store updated configuration with apiKey validation disabled
+      // (since we're preserving the existing key)
+      const result = await this.storeAPIKeyWithValidation(currentConfig);
+      
+      // Also store tokenTotalBudget separately for easy access (same as handleSaveConfiguration)
+      if (needsBudgetSave || updates.tokenTotalBudget !== undefined) {
+        await chrome.storage.local.set({ tokenTotalBudget: currentConfig.tokenTotalBudget ?? null });
+      }
+      
+      return result;
 
     } catch (error) {
       console.error('Failed to update configuration:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Store API key and configuration securely (with optional apiKey validation)
+   */
+  async storeAPIKeyWithValidation(config) {
+    try {
+      // Validate configuration without apiKey check (since it may be preserved from existing config)
+      if (!(config instanceof AIProviderConfig)) {
+        throw new Error('Invalid configuration object');
+      }
+
+      const validationErrors = config.validate(false); // Don't validate apiKey here
+      if (validationErrors.length > 0) {
+        throw new Error('Configuration validation failed: ' + validationErrors.join(', '));
+      }
+
+      // Ensure encryption is initialized
+      if (!this.encryptionKey) {
+        await this.initializeEncryption();
+      }
+
+      // Encrypt the API key
+      const encryptedApiKey = await EncryptionUtils.encrypt(config.apiKey, this.encryptionKey);
+
+      // Prepare data for storage (without plain text API key)
+      const storageData = {
+        provider: config.provider,
+        encryptedApiKey: encryptedApiKey,
+        model: config.model,
+        maxTokens: config.maxTokens,
+        temperature: config.temperature,
+        customApiUrl: config.customApiUrl,
+        tokenTotalBudget: config.tokenTotalBudget,
+        timestamp: config.timestamp
+      };
+
+      // Store configuration
+      await chrome.storage.local.set({
+        aiProviderConfig: storageData,
+        lastConfigUpdate: Date.now()
+      });
+
+      console.log('Configuration stored successfully:', config.getSanitized());
+      return true;
+
+    } catch (error) {
+      console.error('Failed to store API key:', error);
       throw error;
     }
   }

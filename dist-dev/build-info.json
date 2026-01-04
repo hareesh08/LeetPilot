@@ -1,8 +1,8 @@
 {
   "environment": "development",
   "target": "chrome",
-  "buildTime": "2026-01-04T10:24:56.688Z",
-  "buildVersion": "1.0.0-2026-01-04T10-24-56",
+  "buildTime": "2026-01-04T13:32:50.693Z",
+  "buildVersion": "1.2.1-2026-01-04T13-32-50",
   "config": {
     "environment": {
       "name": "Development",

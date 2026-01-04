@@ -1,6 +1,6 @@
 {
   "name": "leetpilot-extension",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "AI-powered code completion and educational hints for LeetCode with BYOK (Bring Your Own Key) privacy",
   "main": "dist/index.js",
   "scripts": {
@@ -8,6 +8,8 @@
     "build:dev": "node scripts/build.js development chrome",
     "build:staging": "node scripts/build.js staging chrome",
     "build:prod": "node scripts/build.js production chrome",
+    "build:production": "node scripts/buildProduction.js",
+    "install:build-deps": "node scripts/install-build-deps.js",
     "build:extension": "npm run build && npm run copy:extension",
     "copy:extension": "cp manifest.json dist/ && cp -r background dist/ && cp -r content dist/ && cp -r popup dist/ && cp -r icons dist/",
     "dev": "tsc --watch",
@@ -35,9 +37,14 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.5",
+    "archiver": "^7.0.1",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
-    "typescript": "^5.5.3"
+    "terser-webpack-plugin": "^5.3.16",
+    "typescript": "^5.5.3",
+    "webpack": "^5.104.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-obfuscator": "^3.6.0"
   },
   "jest": {
     "testEnvironment": "jsdom",

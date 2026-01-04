@@ -687,11 +687,15 @@ export class PopupManager {
     }
 
     try {
+      // Determine if this is a partial update (API key is masked/preserved)
+      const apiKeyIsMasked = apiKey === '••••••••••••••••••••••••••••••••';
+      
       const response = await this.sendMessageToBackground({
         type: 'saveConfiguration',
         config: {
           provider: provider,
-          apiKey: apiKey,
+          apiKey: apiKeyIsMasked ? undefined : apiKey,
+          isPartial: apiKeyIsMasked,
           model: model || null,
           maxTokens: maxTokens,
           temperature: temperature,
