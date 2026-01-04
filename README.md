@@ -10,6 +10,10 @@
 
 [Features](#features) • [Installation](#installation) • [Contributing](#contributing) • [Issues](#raising-issues) • [Releases](#releases)
 
+---
+
+![Main Preview](image/main-preview.png)
+
 </div>
 
 ---
@@ -71,6 +75,8 @@ Download the latest release from our [Releases page](https://github.com/leetpilo
 ---
 
 ## ⚙️ Configuration
+
+![Settings Preview](image/settings-preview.png)
 
 1. Click the LeetPilot extension icon in your browser toolbar
 2. Select your preferred AI provider (OpenAI, Anthropic, or Google Gemini)
