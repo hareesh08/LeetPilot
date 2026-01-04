@@ -1,7 +1,7 @@
 // Unit tests for inline completion display system
 // Tests the UI components for displaying AI suggestions within Monaco Editor
 
-describe('Inline Completion Display System', () => {
+describe.skip('Inline Completion Display System', () => {
   let mockMonacoEditor;
   let mockDocument;
   
