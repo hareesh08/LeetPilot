@@ -225,15 +225,8 @@ Any other context or screenshots.
 
 ## 📦 Releases
 
-### Version History
-
 All releases are available on our [Releases page](https://github.com/leetpilot/extension/releases).
 
-| Version | Date | Changelog |
-|---------|------|-----------|
-| [v1.2.1](https://github.com/leetpilot/extension/releases/tag/v1.2.1) | 2024-01-04 | Latest stable release |
-| [v1.2.0](https://github.com/leetpilot/extension/releases/tag/v1.2.0) | 2024-01-01 | Feature release |
-| [v1.1.0](https://github.com/leetpilot/extension/releases/tag/v1.1.0) | 2023-12-15 | Bug fixes |
 
 ### Automatic Releases
 

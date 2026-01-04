@@ -39,12 +39,14 @@ jobs:
       - name: Validate package
         run: npm run validate:package
         
-      - name: Upload build report
+      - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-report
-          path: dist/build-report.json
+          name: leetpilot-build
+          path: |
+            dist-dev/
+            dist/
           retention-days: 7
 
   lint:
